@@ -36,15 +36,28 @@ body {
     font-weight: 700;
     letter-spacing: 0.02em;
 }
-.theme-banner {
+#metadata-section {
     margin: 0.5rem 1rem 0.25rem;
-    padding: 0.5rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.metadata-item {
+    padding: 0.4rem 0.75rem;
     font-size: 0.75rem;
     line-height: 1.4;
-    color: #c8b8e8;
     background: #2a2a4a;
     border-radius: 6px;
     border-left: 3px solid #7b68ee;
+}
+.metadata-key {
+    color: #888;
+    text-transform: uppercase;
+    font-size: 0.6rem;
+    letter-spacing: 0.05em;
+}
+.metadata-value {
+    color: #c8b8e8;
 }
 .nav-section {
     font-size: 0.7rem;

@@ -8,7 +8,7 @@
     <body>
         <nav class="sidenav">
             <h1>Easy</h1>
-            <div id="theme-banner" class="theme-banner" hidden></div>
+            <div id="metadata-section" hidden></div>
             <div class="nav-section">Diagrams</div>
             <a href="#stories" class="nav-link" data-section="stories"
                 >Stories</a
@@ -115,15 +115,22 @@
                 "entities-zoom",
             );
 
-            // Load metadata (theme)
+            // Load metadata
             fetch("/api/metadata")
                 .then(function (r) { return r.json(); })
                 .then(function (meta) {
-                    if (meta.theme) {
-                        var banner = document.getElementById("theme-banner");
-                        banner.textContent = meta.theme;
-                        banner.hidden = false;
-                    }
+                    var keys = Object.keys(meta);
+                    if (keys.length === 0) return;
+                    var section = document.getElementById("metadata-section");
+                    var html = "";
+                    keys.forEach(function (key) {
+                        html += '<div class="metadata-item">' +
+                            '<span class="metadata-key">' + esc(key) + '</span> ' +
+                            '<span class="metadata-value">' + esc(meta[key]) + '</span>' +
+                            '</div>';
+                    });
+                    section.innerHTML = html;
+                    section.hidden = false;
                 })
                 .catch(function () {});
 
