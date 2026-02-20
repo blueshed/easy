@@ -48,6 +48,11 @@ Checklists:
   bun model unconfirm-check <check_id> --api|--ux
   bun model list-checks [checklist]
 
+Theme:
+  bun model set-theme <description>
+  bun model get-theme
+  bun model clear-theme
+
 Listing:
   bun model list
   bun model list-stories
@@ -222,7 +227,7 @@ Output:
 Batch: 7 ok, 0 failed, 7 total
 ```
 
-Errors on individual lines are caught and reported without stopping the batch. This is the preferred way to add many entities, methods, or links at once.
+Errors on individual lines are caught and reported without stopping the batch. **Prefer individual commands** over batch — run each `bun model` call separately so errors are caught immediately. Only use batch for large bulk imports where you've already verified the syntax.
 
 ## Checklists
 

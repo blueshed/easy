@@ -313,7 +313,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
       const [entity, name, argsJson = "[]", returnType = "boolean"] = args;
       if (!entity || !name) {
         console.error(
-          "Usage: bun model add-method <Entity> <name> [args_json] [return_type] [--no-auth]",
+          "Usage: bun model add-method <Entity> <name> [args_json] [return_type] [--no-auth] [--permission <perm>]",
         );
         throw new Error("fail");
       }
@@ -326,6 +326,15 @@ function dispatch(cmd: string, rawArgs: string[]): void {
       console.log(
         `Method '${entity}.${name}(${argsJson}) -> ${returnType}' added.`,
       );
+      // Convenience: --permission adds a permission path in the same call
+      if (flags["permission"] && typeof flags["permission"] === "string") {
+        const mid = methodId(`${entity}.${name}`);
+        db.run(
+          "INSERT INTO method_permissions (method_id, path, description) VALUES (?, ?, '')",
+          [mid, flags["permission"]],
+        );
+        console.log(`  Permission '${flags["permission"]}' added.`);
+      }
       break;
     }
     case "remove-method": {
@@ -718,6 +727,38 @@ function dispatch(cmd: string, rawArgs: string[]): void {
       break;
     }
 
+    // === Metadata ===
+
+    case "set-theme": {
+      const text = args.join(" ").trim();
+      if (!text) {
+        console.error("Usage: bun model set-theme <description>");
+        throw new Error("fail");
+      }
+      db.run(
+        "INSERT OR REPLACE INTO metadata (key, value) VALUES ('theme', ?)",
+        [text],
+      );
+      console.log(`Theme set: ${text}`);
+      break;
+    }
+    case "get-theme": {
+      const row = db
+        .query("SELECT value FROM metadata WHERE key = 'theme'")
+        .get() as { value: string } | null;
+      if (row) {
+        console.log(row.value);
+      } else {
+        console.log("(no theme set)");
+      }
+      break;
+    }
+    case "clear-theme": {
+      db.run("DELETE FROM metadata WHERE key = 'theme'");
+      console.log("Theme cleared.");
+      break;
+    }
+
     // === Listing ===
 
     case "list": {
@@ -965,6 +1006,16 @@ function dispatch(cmd: string, rawArgs: string[]): void {
 
       const out: string[] = [];
       out.push("# Application Spec\n");
+
+      // Theme
+      const themeRow = db
+        .query("SELECT value FROM metadata WHERE key = 'theme'")
+        .get() as { value: string } | null;
+      if (themeRow) {
+        out.push("## Theme\n");
+        out.push(themeRow.value);
+        out.push("");
+      }
 
       // Stories
       const stories = db
@@ -1360,6 +1411,11 @@ function usage() {
   Story Links:
     bun model link-story <story_id> <target_type> <target_name>
     bun model unlink-story <story_id> <target_type> <target_name>
+
+  Theme:
+    bun model set-theme <description>
+    bun model get-theme
+    bun model clear-theme
 
   Listing:
     bun model list

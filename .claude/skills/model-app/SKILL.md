@@ -1,6 +1,7 @@
 ---
 name: model-app
 description: Model an application by decomposing user requirements into stories, entities, documents, methods, and change targets using the Easy CLI. Use when the user wants to design or model a new app, add features to a model, or work with the model database.
+allowed-tools: Read, Bash, Edit, Write
 ---
 
 # Model a Simple Application
@@ -8,6 +9,30 @@ description: Model an application by decomposing user requirements into stories,
 Decompose application requirements into [Simple](https://github.com/blueshed/simple) concepts using the `bun model` CLI. The modeler stores the design in SQLite and generates diagrams and specs.
 
 > `bun model` resolves to `docker compose exec easy bun model` via the `model` script in package.json — it runs inside the Easy container.
+
+**Important**:
+- Most CLI args are **positional**, not flags. Use the exact syntax from `reference.md`. Do NOT invent flags like `--actor` — the CLI will reject them.
+- **Run commands individually**, not in batch. Each command should be a separate `bun model` call so you can see errors immediately and fix them before proceeding. Only use `bun model batch` for large bulk imports where you've already verified the syntax.
+
+## Before you start
+
+Check that the Easy and PlantUML containers are running:
+
+```bash
+docker compose ps --format '{{.Service}} {{.State}}' | grep -E '^(easy|plantuml) '
+```
+
+If they are not running, tell the user:
+
+```
+The Easy and PlantUML containers are not running. Start them with:
+
+  bun run up
+
+Then try again.
+```
+
+Do not proceed with modeling until both containers are running.
 
 ## What is Simple?
 
@@ -53,6 +78,18 @@ Always work top-down in this order:
 8. **Story links** — connect each story to its artifacts
 9. **Checklists** — CAN/DENIED checks that verify permission enforcement (see guidance below)
 10. **Export** — `bun model export-spec` to generate the spec
+
+## Theme and Style
+
+If the user describes a visual style, mood, or theme (e.g. "60s flower power", "dark minimalist", "warm brutalist"), capture it in the model:
+
+```bash
+bun model set-theme "60s flower power — warm oranges, earthy browns, groovy rounded shapes, hand-drawn feel"
+```
+
+The theme is stored in the model database and included in `export-spec` output as a `## Theme` section. The `/implement` skill reads it to guide CSS generation.
+
+If the user doesn't mention a theme, skip this step.
 
 ## Account Entity
 

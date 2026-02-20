@@ -127,6 +127,12 @@ export function openDb(readonly = false): Database {
         depends_on_id INTEGER NOT NULL REFERENCES checks(id) ON DELETE CASCADE,
         UNIQUE(check_id, depends_on_id)
       );
+
+      -- Metadata: key-value store for project-level settings (theme, etc.)
+      CREATE TABLE IF NOT EXISTS metadata (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
     `);
   }
   return db;
