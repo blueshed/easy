@@ -930,6 +930,23 @@ export function getChecklistDetail(name: string): {
   return { name: cl.name, description: cl.description, checks: result };
 }
 
+export function getMetadata(): Record<string, string> {
+  const db = openDb(true);
+  try {
+    const rows = db.query("SELECT key, value FROM metadata").all() as {
+      key: string;
+      value: string;
+    }[];
+    const result: Record<string, string> = {};
+    for (const r of rows) result[r.key] = r.value;
+    return result;
+  } catch {
+    return {};
+  } finally {
+    db.close();
+  }
+}
+
 if (import.meta.main) {
   const diagrams = await etl();
   for (const [name, svg] of Object.entries(diagrams)) {

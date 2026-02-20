@@ -36,6 +36,16 @@ body {
     font-weight: 700;
     letter-spacing: 0.02em;
 }
+.theme-banner {
+    margin: 0.5rem 1rem 0.25rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: #c8b8e8;
+    background: #2a2a4a;
+    border-radius: 6px;
+    border-left: 3px solid #7b68ee;
+}
 .nav-section {
     font-size: 0.7rem;
     text-transform: uppercase;

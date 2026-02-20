@@ -10,6 +10,7 @@ import {
   getEntityDetail,
   getChecklistList,
   getChecklistDetail,
+  getMetadata,
 } from "./etl";
 import homepage from "./index.html";
 
@@ -64,6 +65,14 @@ const server = Bun.serve({
         return Response.json(getChecklistList());
       } catch {
         return Response.json([]);
+      }
+    },
+
+    "/api/metadata": () => {
+      try {
+        return Response.json(getMetadata());
+      } catch {
+        return Response.json({});
       }
     },
 

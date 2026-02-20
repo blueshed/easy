@@ -8,6 +8,7 @@
     <body>
         <nav class="sidenav">
             <h1>Easy</h1>
+            <div id="theme-banner" class="theme-banner" hidden></div>
             <div class="nav-section">Diagrams</div>
             <a href="#stories" class="nav-link" data-section="stories"
                 >Stories</a
@@ -113,6 +114,18 @@
                 "/diagram/entities.svg",
                 "entities-zoom",
             );
+
+            // Load metadata (theme)
+            fetch("/api/metadata")
+                .then(function (r) { return r.json(); })
+                .then(function (meta) {
+                    if (meta.theme) {
+                        var banner = document.getElementById("theme-banner");
+                        banner.textContent = meta.theme;
+                        banner.hidden = false;
+                    }
+                })
+                .catch(function () {});
 
             // Build link href from type + name
             function linkHref(type, name) {
