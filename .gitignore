@@ -1,0 +1,5 @@
+node_modules/
+*.db
+spec.md
+.DS_Store
+.claude/settings.local.json

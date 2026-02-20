@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Easy</title>
+        <link rel="stylesheet" href="./site.css" />
+    </head>
+    <body>
+        <nav class="sidenav">
+            <h1>Easy</h1>
+            <div class="nav-section">Diagrams</div>
+            <a href="#stories" class="nav-link" data-section="stories"
+                >Stories</a
+            >
+            <a href="#usecases" class="nav-link" data-section="usecases"
+                >Use Cases</a
+            >
+            <a href="#entities" class="nav-link" data-section="entities"
+                >Entities</a
+            >
+            <div class="nav-section">Documents</div>
+            <div id="doc-nav"></div>
+            <div class="nav-section">Checklists</div>
+            <div id="checklist-nav"></div>
+        </nav>
+
+        <main class="main">
+            <div id="stories" class="section">
+                <h2 class="section-title">Stories</h2>
+                <div id="stories-content"></div>
+            </div>
+
+            <div id="usecases" class="section">
+                <h2 class="section-title">Use Cases</h2>
+                <div class="diagram-inline" id="diagram-usecases"></div>
+            </div>
+
+            <div id="entities" class="section section-full">
+                <div class="section-header">
+                    <h2 class="section-title">Entities</h2>
+                    <div class="zoom-controls" id="entities-zoom">
+                        <button class="zoom-btn" data-action="out">
+                            &minus;
+                        </button>
+                        <span class="zoom-level">100%</span>
+                        <button class="zoom-btn" data-action="in">+</button>
+                        <button class="zoom-btn" data-action="fit">F</button>
+                    </div>
+                </div>
+                <div class="diagram-inline" id="diagram-entities"></div>
+            </div>
+
+            <!-- Document, entity, and checklist pages are created dynamically -->
+            <div id="checklist-pages"></div>
+            <div id="doc-pages"></div>
+            <div id="entity-pages"></div>
+        </main>
+
+        <script>
+            const t = Date.now();
+
+            // Load SVG inline
+            function loadSvgInline(container, url) {
+                fetch(url + "?t=" + t)
+                    .then(function (r) {
+                        return r.text();
+                    })
+                    .then(function (svg) {
+                        container.innerHTML = svg;
+                    });
+            }
+
+            // Load SVG with external zoom controls
+            function loadSvgWithZoom(container, url, controlsId) {
+                fetch(url + "?t=" + t)
+                    .then(function (r) {
+                        return r.text();
+                    })
+                    .then(function (svg) {
+                        var inner = document.createElement("div");
+                        inner.className = "zoom-inner";
+                        inner.innerHTML = svg;
+                        container.innerHTML = "";
+                        container.appendChild(inner);
+
+                        var zoom = 1;
+                        var controls = document.getElementById(controlsId);
+                        var label = controls.querySelector(".zoom-level");
+                        function setZoom(z) {
+                            zoom = Math.max(0.1, Math.min(3, z));
+                            inner.style.transform = "scale(" + zoom + ")";
+                            inner.style.width = 100 / zoom + "%";
+                            label.textContent = Math.round(zoom * 100) + "%";
+                        }
+                        controls.addEventListener("click", function (e) {
+                            var btn = e.target.closest("[data-action]");
+                            if (!btn) return;
+                            var action = btn.dataset.action;
+                            if (action === "in") setZoom(zoom + 0.25);
+                            else if (action === "out") setZoom(zoom - 0.25);
+                            else if (action === "fit") setZoom(1);
+                        });
+                    });
+            }
+
+            // Load static diagrams inline
+            loadSvgInline(
+                document.getElementById("diagram-usecases"),
+                "/diagram/usecases.svg",
+            );
+            loadSvgWithZoom(
+                document.getElementById("diagram-entities"),
+                "/diagram/entities.svg",
+                "entities-zoom",
+            );
+
+            // Build link href from type + name
+            function linkHref(type, name) {
+                if (type === "entity") return "#entity-" + name;
+                if (type === "document") return "#doc-" + name;
+                if (type === "method") return "#entity-" + name.split(".")[0];
+                return null;
+            }
+
+            // Render a link-tag as <a> if navigable, <span> otherwise
+            function linkTag(type, name) {
+                var href = linkHref(type, name);
+                if (href) {
+                    return (
+                        '<a href="' +
+                        href +
+                        '" class="link-tag ' +
+                        type +
+                        '">' +
+                        type +
+                        ": " +
+                        esc(name) +
+                        "</a>"
+                    );
+                }
+                return (
+                    '<span class="link-tag ' +
+                    type +
+                    '">' +
+                    type +
+                    ": " +
+                    esc(name) +
+                    "</span>"
+                );
+            }
+
+            // Load document list into nav and create pages
+            fetch("/api/documents")
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (docs) {
+                    var nav = document.getElementById("doc-nav");
+                    var pages = document.getElementById("doc-pages");
+
+                    docs.forEach(function (doc) {
+                        // Nav link
+                        var a = document.createElement("a");
+                        a.href = "#doc-" + doc.name;
+                        a.className = "nav-link";
+                        a.dataset.section = "doc-" + doc.name;
+                        a.textContent = doc.name;
+                        nav.appendChild(a);
+
+                        // Page section
+                        var section = document.createElement("div");
+                        section.id = "doc-" + doc.name;
+                        section.className = "section";
+                        section.innerHTML =
+                            '<h2 class="section-title">' +
+                            esc(doc.name) +
+                            "</h2>" +
+                            '<div class="doc-meta">' +
+                            '<a href="#entity-' +
+                            esc(doc.entity) +
+                            '" class="meta-tag">' +
+                            esc(doc.entity) +
+                            "</a>" +
+                            (doc.collection
+                                ? '<span class="meta-tag collection">collection</span>'
+                                : "") +
+                            (doc.public
+                                ? '<span class="meta-tag public">public</span>'
+                                : "") +
+                            "</div>" +
+                            '<div class="diagram-inline" id="diagram-doc-' +
+                            doc.name +
+                            '"></div>' +
+                            '<div class="doc-detail" id="detail-' +
+                            doc.name +
+                            '"></div>';
+                        pages.appendChild(section);
+
+                        // Load diagram inline
+                        loadSvgInline(
+                            document.getElementById("diagram-doc-" + doc.name),
+                            "/diagram/doc/" +
+                                encodeURIComponent(doc.name) +
+                                ".svg",
+                        );
+                    });
+
+                    // Load detail for each doc
+                    docs.forEach(function (doc) {
+                        fetch("/api/documents/" + encodeURIComponent(doc.name))
+                            .then(function (r) {
+                                return r.json();
+                            })
+                            .then(function (detail) {
+                                renderDocDetail(doc.name, detail);
+                            });
+                    });
+
+                    // Re-navigate in case hash was set before docs loaded
+                    navigate();
+                });
+
+            function renderDocDetail(name, detail) {
+                var el = document.getElementById("detail-" + name);
+                if (!el) return;
+                var html = "";
+
+                if (detail.changedBy && detail.changedBy.length > 0) {
+                    html += '<h3 class="detail-heading">Changed by</h3>';
+                    html += '<div class="entity-docs">';
+                    detail.changedBy.forEach(function (c) {
+                        var label = esc(c.entity);
+                        if (c.path) {
+                            label += " \u2192 " + esc(c.path);
+                            if (c.fks.length > 1) {
+                                label +=
+                                    ' <span class="role-tag">[' +
+                                    c.fks.slice(1).map(esc).join(", ") +
+                                    "]</span>";
+                            }
+                        } else {
+                            label += ' <span class="role-tag">(root)</span>';
+                        }
+                        html +=
+                            '<a href="#entity-' +
+                            esc(c.entity) +
+                            '" class="change-tag">' +
+                            label +
+                            "</a>";
+                    });
+                    html += "</div>";
+                }
+
+                if (detail.methods && detail.methods.length > 0) {
+                    html += '<h3 class="detail-heading">Methods</h3>';
+                    html += '<div class="methods-list">';
+                    detail.methods.forEach(function (m) {
+                        var perm = (m.permissions || [])
+                            .map(function (p) {
+                                return (
+                                    '<span class="perm-tag">' +
+                                    esc(p.path) +
+                                    "</span>"
+                                );
+                            })
+                            .join("");
+                        var pubs = m.publishes
+                            .map(function (p) {
+                                return (
+                                    '<span class="pub-tag">publishes: ' +
+                                    esc(p) +
+                                    "</span>"
+                                );
+                            })
+                            .join("");
+                        html +=
+                            '<div class="method-card">' +
+                            '<div class="method-sig">' +
+                            esc(m.name) +
+                            "(" +
+                            esc(m.args) +
+                            ") \u2192 " +
+                            esc(m.return_type) +
+                            "</div>" +
+                            '<div class="method-tags">' +
+                            perm +
+                            pubs +
+                            "</div>" +
+                            "</div>";
+                    });
+                    html += "</div>";
+                }
+
+                if (detail.stories && detail.stories.length > 0) {
+                    html += '<h3 class="detail-heading">Stories</h3>';
+                    detail.stories.forEach(function (s) {
+                        html +=
+                            '<div class="story">' +
+                            '<div class="story-text">As a <span class="story-actor">' +
+                            esc(s.actor) +
+                            '</span>, I can <span class="story-action">' +
+                            esc(s.action) +
+                            "</span></div>" +
+                            "</div>";
+                    });
+                }
+
+                el.innerHTML = html;
+            }
+
+            // Load entity pages (no nav links — accessed by clicking entity names)
+            fetch("/api/entities")
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (entities) {
+                    var pages = document.getElementById("entity-pages");
+
+                    entities.forEach(function (e) {
+                        var section = document.createElement("div");
+                        section.id = "entity-" + e.name;
+                        section.className = "section";
+                        section.innerHTML =
+                            '<h2 class="section-title">' +
+                            esc(e.name) +
+                            "</h2>" +
+                            '<div class="diagram-inline" id="diagram-entity-' +
+                            e.name +
+                            '"></div>' +
+                            '<div class="entity-detail" id="entity-detail-' +
+                            e.name +
+                            '"></div>';
+                        pages.appendChild(section);
+
+                        // Load diagram inline
+                        loadSvgInline(
+                            document.getElementById("diagram-entity-" + e.name),
+                            "/diagram/entity/" +
+                                encodeURIComponent(e.name) +
+                                ".svg",
+                        );
+
+                        // Load detail
+                        fetch("/api/entities/" + encodeURIComponent(e.name))
+                            .then(function (r) {
+                                return r.json();
+                            })
+                            .then(function (detail) {
+                                renderEntityDetail(e.name, detail);
+                            });
+                    });
+
+                    navigate();
+                });
+
+            function renderEntityDetail(name, detail) {
+                var el = document.getElementById("entity-detail-" + name);
+                if (!el) return;
+                var html = "";
+
+                // Documents this entity appears in
+                if (detail.documents && detail.documents.length > 0) {
+                    html += '<h3 class="detail-heading">Documents</h3>';
+                    html += '<div class="entity-docs">';
+                    detail.documents.forEach(function (d) {
+                        html +=
+                            '<a href="#doc-' +
+                            esc(d.name) +
+                            '" class="link-tag document">' +
+                            esc(d.name) +
+                            ' <span class="role-tag">(' +
+                            d.role +
+                            ")</span></a>";
+                    });
+                    html += "</div>";
+                }
+
+                // Changes
+                if (detail.changes && detail.changes.length > 0) {
+                    html += '<h3 class="detail-heading">Changes</h3>';
+                    html += '<div class="entity-docs">';
+                    detail.changes.forEach(function (c) {
+                        var label = esc(c.doc) + "(" + esc(c.fks[0]) + ")";
+                        if (c.path) {
+                            label += " \u2192 " + esc(c.path);
+                            if (c.fks.length > 1) {
+                                label +=
+                                    ' <span class="role-tag">[' +
+                                    c.fks.slice(1).map(esc).join(", ") +
+                                    "]</span>";
+                            }
+                        }
+                        if (c.collection)
+                            label += ' <span class="role-tag">(collection)</span>';
+                        html +=
+                            '<a href="#doc-' +
+                            esc(c.doc) +
+                            '" class="change-tag">' +
+                            label +
+                            "</a>";
+                    });
+                    html += "</div>";
+                }
+
+                // Methods
+                if (detail.methods && detail.methods.length > 0) {
+                    html += '<h3 class="detail-heading">Methods</h3>';
+                    html += '<div class="methods-list">';
+                    detail.methods.forEach(function (m) {
+                        var perm = (m.permissions || [])
+                            .map(function (p) {
+                                return (
+                                    '<span class="perm-tag">' +
+                                    esc(p.path) +
+                                    "</span>"
+                                );
+                            })
+                            .join("");
+                        var pubs = m.publishes
+                            .map(function (p) {
+                                return (
+                                    '<span class="pub-tag">publishes: ' +
+                                    esc(p) +
+                                    "</span>"
+                                );
+                            })
+                            .join("");
+                        html +=
+                            '<div class="method-card">' +
+                            '<div class="method-sig">' +
+                            esc(m.name) +
+                            "(" +
+                            esc(m.args) +
+                            ") \u2192 " +
+                            esc(m.return_type) +
+                            "</div>" +
+                            '<div class="method-tags">' +
+                            perm +
+                            pubs +
+                            "</div>" +
+                            "</div>";
+                    });
+                    html += "</div>";
+                }
+
+                el.innerHTML = html;
+            }
+
+            // Load stories
+            fetch("/api/stories")
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (stories) {
+                    var el = document.getElementById("stories-content");
+                    if (stories.length === 0) {
+                        el.innerHTML =
+                            '<div class="empty">No stories yet. Add one with: bun model add-story &lt;actor&gt; &lt;action&gt;</div>';
+                        return;
+                    }
+                    el.innerHTML =
+                        stories
+                            .map(function (s) {
+                                var desc = s.description
+                                    ? '<div class="story-desc">' +
+                                      esc(s.description) +
+                                      "</div>"
+                                    : "";
+                                var links = s.links
+                                    .filter(function (l) {
+                                        return l.type !== "notification";
+                                    })
+                                    .map(function (l) {
+                                        return linkTag(l.type, l.name);
+                                    })
+                                    .join("");
+                                var linksDiv = links
+                                    ? '<div class="story-links">' +
+                                      links +
+                                      "</div>"
+                                    : "";
+                                return (
+                                    '<div class="story">' +
+                                    '<div class="story-text"><span class="story-id">' +
+                                    s.id +
+                                    '#</span> As a <span class="story-actor">' +
+                                    esc(s.actor) +
+                                    '</span>, I can <span class="story-action">' +
+                                    esc(s.action) +
+                                    "</span></div>" +
+                                    desc +
+                                    linksDiv +
+                                    "</div>"
+                                );
+                            })
+                            .join("") +
+                        '<div class="legend">' +
+                        '<span class="link-tag entity">entity</span>' +
+                        '<span class="link-tag document">document</span>' +
+                        '<span class="link-tag method">method</span>' +
+                        "</div>";
+                })
+                .catch(function () {
+                    document.getElementById("stories-content").innerHTML =
+                        '<div class="empty">No model database yet. Use the CLI to add stories.</div>';
+                });
+
+            // Load checklists
+            fetch("/api/checklists")
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (checklists) {
+                    var nav = document.getElementById("checklist-nav");
+                    var pages = document.getElementById("checklist-pages");
+
+                    if (checklists.length === 0) return;
+
+                    checklists.forEach(function (cl) {
+                        // Nav link with progress
+                        var a = document.createElement("a");
+                        a.href = "#checklist-" + cl.name.replace(/\s+/g, "-");
+                        a.className = "nav-link";
+                        a.dataset.section =
+                            "checklist-" + cl.name.replace(/\s+/g, "-");
+                        a.innerHTML =
+                            esc(cl.name) +
+                            ' <span class="checklist-progress">' +
+                            cl.done +
+                            "/" +
+                            cl.total +
+                            "</span>";
+                        nav.appendChild(a);
+
+                        // Page section
+                        var pct =
+                            cl.total > 0
+                                ? Math.round((cl.done / cl.total) * 100)
+                                : 0;
+                        var section = document.createElement("div");
+                        section.id =
+                            "checklist-" + cl.name.replace(/\s+/g, "-");
+                        section.className = "section";
+                        section.innerHTML =
+                            '<h2 class="section-title">' +
+                            esc(cl.name) +
+                            "</h2>" +
+                            (cl.description
+                                ? '<p class="checklist-desc">' +
+                                  esc(cl.description) +
+                                  "</p>"
+                                : "") +
+                            '<div class="checklist-bar-wrap"><div class="checklist-bar" style="width:' +
+                            pct +
+                            '%"></div></div>' +
+                            '<span class="checklist-pct">' +
+                            "api: " +
+                            cl.api +
+                            "/" +
+                            cl.total +
+                            " &nbsp; ux: " +
+                            cl.ux +
+                            "/" +
+                            cl.total +
+                            " &nbsp; done: " +
+                            cl.done +
+                            "/" +
+                            cl.total +
+                            "</span>" +
+                            '<div class="checks-list" id="checks-' +
+                            cl.name.replace(/\s+/g, "-") +
+                            '"></div>';
+                        pages.appendChild(section);
+
+                        // Load detail
+                        fetch("/api/checklists/" + encodeURIComponent(cl.name))
+                            .then(function (r) {
+                                return r.json();
+                            })
+                            .then(function (detail) {
+                                renderChecklistDetail(cl.name, detail);
+                            });
+                    });
+
+                    navigate();
+                });
+
+            function renderChecklistDetail(name, detail) {
+                var el = document.getElementById(
+                    "checks-" + name.replace(/\s+/g, "-"),
+                );
+                if (!el || !detail.checks) return;
+
+                // Build id->seq map for dependency labels
+                var idToSeq = {};
+                detail.checks.forEach(function (c) {
+                    idToSeq[c.id] = c.seq;
+                });
+
+                var html = "";
+                detail.checks.forEach(function (c) {
+                    var apiOk = c.confirmed & 1;
+                    var uxOk = c.confirmed & 2;
+                    var fullyDone = c.confirmed === 3;
+                    var confirmed = fullyDone ? " confirmed" : "";
+                    var denied = c.action === "denied" ? " denied" : "";
+                    var bits =
+                        '<span class="check-bit' +
+                        (apiOk ? " ok" : "") +
+                        '">A</span>' +
+                        '<span class="check-bit' +
+                        (uxOk ? " ok" : "") +
+                        '">U</span>';
+                    var methodHtml = c.method
+                        ? '<a href="#entity-' +
+                          c.method.split(".")[0] +
+                          '" class="check-method">' +
+                          esc(c.method) +
+                          "</a>"
+                        : "";
+                    var depsHtml = "";
+                    if (c.depends_on.length > 0) {
+                        depsHtml =
+                            '<span class="check-deps">after step ' +
+                            c.depends_on
+                                .map(function (depId) {
+                                    return idToSeq[depId] || depId;
+                                })
+                                .join(", ") +
+                            "</span>";
+                    }
+                    html +=
+                        '<div class="check-item' +
+                        confirmed +
+                        denied +
+                        '">' +
+                        '<div class="check-row-top">' +
+                        '<span class="check-bits">' +
+                        bits +
+                        "</span>" +
+                        '<span class="check-seq">' +
+                        c.seq +
+                        "</span>" +
+                        '<span class="check-actor actor-' +
+                        c.actor.replace(/[^a-zA-Z]/g, "") +
+                        '">' +
+                        esc(c.actor) +
+                        "</span>" +
+                        '<span class="check-action">' +
+                        (c.action === "denied" ? "DENIED" : "CAN") +
+                        "</span>" +
+                        methodHtml +
+                        depsHtml +
+                        "</div>" +
+                        (c.description
+                            ? '<div class="check-row-desc">' +
+                              esc(c.description) +
+                              "</div>"
+                            : "") +
+                        "</div>";
+                });
+                el.innerHTML = html;
+            }
+
+            function navigate() {
+                var hash = location.hash.slice(1) || "stories";
+                document.querySelectorAll(".section").forEach(function (s) {
+                    s.classList.remove("active");
+                });
+                document.querySelectorAll(".nav-link").forEach(function (a) {
+                    a.classList.remove("active");
+                });
+                var section = document.getElementById(hash);
+                if (section) {
+                    section.classList.add("active");
+                    var link = document.querySelector(
+                        '.nav-link[data-section="' + hash + '"]',
+                    );
+                    if (link) link.classList.add("active");
+                } else {
+                    document.getElementById("stories").classList.add("active");
+                    document
+                        .querySelector('.nav-link[data-section="stories"]')
+                        .classList.add("active");
+                }
+            }
+
+            function esc(s) {
+                var d = document.createElement("div");
+                d.textContent = s;
+                return d.innerHTML;
+            }
+
+            window.addEventListener("hashchange", navigate);
+            navigate();
+        </script>
+    </body>
+</html>
