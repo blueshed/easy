@@ -32,8 +32,28 @@ docker compose exec easy bun model export-spec  # Markdown spec output
 # Site at http://localhost:8080
 ```
 
+## Docker
+
+Easy is published as `ghcr.io/blueshed/easy`. The GitHub Actions workflow (`.github/workflows/publish.yml`) builds and pushes on `v*` tags:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+This produces tags: `0.1.0`, `0.1`, and `latest`.
+
+In a Simple project, users uncomment the `easy` and `plantuml` services in `compose.yml` to add modeling. The container mounts `model.db` as a volume for persistence.
+
+## Integration with Simple
+
+Easy's `export-spec` output is consumed by Simple's `/implement` skill. The full pipeline:
+
+1. Define the domain model with Easy (`bun model` commands or the visual site)
+2. Export: `docker compose exec easy bun model export-spec > spec.md`
+3. In the Simple project, run `/implement` to build schema, functions, and components from the spec
+
 ## Notes
 
-- The model targets the **simple** pattern: atomic events via `pg_notify`, document-scoped fan-out, client-side merge. There are no user-targeted notifications.
+- The model targets the **simple** pattern: atomic events via `pg_notify`, document-scoped fan-out, client-side merge.
 - The `notifications` table still exists in the schema but is not surfaced in `export-spec` or the site. It may be removed in future.
 - The detailed CLI reference is in `.claude/skills/model-app/reference.md`.
