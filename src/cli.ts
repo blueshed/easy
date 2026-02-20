@@ -729,6 +729,55 @@ function dispatch(cmd: string, rawArgs: string[]): void {
 
     // === Metadata ===
 
+    case "set-meta": {
+      const key = args[0];
+      const value = args.slice(1).join(" ").trim();
+      if (!key || !value) {
+        console.error("Usage: bun model set-meta <key> <value>");
+        throw new Error("fail");
+      }
+      db.run(
+        "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
+        [key, value],
+      );
+      console.log(`${key}: ${value}`);
+      break;
+    }
+    case "get-meta": {
+      const key = args[0];
+      if (!key) {
+        // List all metadata
+        const rows = db
+          .query("SELECT key, value FROM metadata ORDER BY key")
+          .all() as { key: string; value: string }[];
+        if (rows.length === 0) {
+          console.log("(no metadata)");
+        } else {
+          for (const r of rows) console.log(`${r.key}: ${r.value}`);
+        }
+      } else {
+        const row = db
+          .query("SELECT value FROM metadata WHERE key = ?")
+          .get(key) as { value: string } | null;
+        if (row) {
+          console.log(row.value);
+        } else {
+          console.log(`(no value for '${key}')`);
+        }
+      }
+      break;
+    }
+    case "clear-meta": {
+      const key = args[0];
+      if (!key) {
+        console.error("Usage: bun model clear-meta <key>");
+        throw new Error("fail");
+      }
+      db.run("DELETE FROM metadata WHERE key = ?", [key]);
+      console.log(`${key} cleared.`);
+      break;
+    }
+    // Shortcuts
     case "set-theme": {
       const text = args.join(" ").trim();
       if (!text) {
@@ -739,7 +788,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
         "INSERT OR REPLACE INTO metadata (key, value) VALUES ('theme', ?)",
         [text],
       );
-      console.log(`Theme set: ${text}`);
+      console.log(`theme: ${text}`);
       break;
     }
     case "get-theme": {
@@ -1007,13 +1056,15 @@ function dispatch(cmd: string, rawArgs: string[]): void {
       const out: string[] = [];
       out.push("# Application Spec\n");
 
-      // Theme
-      const themeRow = db
-        .query("SELECT value FROM metadata WHERE key = 'theme'")
-        .get() as { value: string } | null;
-      if (themeRow) {
-        out.push("## Theme\n");
-        out.push(themeRow.value);
+      // Metadata
+      const metaRows = db
+        .query("SELECT key, value FROM metadata ORDER BY key")
+        .all() as { key: string; value: string }[];
+      if (metaRows.length > 0) {
+        out.push("## Metadata\n");
+        for (const m of metaRows) {
+          out.push(`- **${m.key}**: ${m.value}`);
+        }
         out.push("");
       }
 
@@ -1412,8 +1463,11 @@ function usage() {
     bun model link-story <story_id> <target_type> <target_name>
     bun model unlink-story <story_id> <target_type> <target_name>
 
-  Theme:
-    bun model set-theme <description>
+  Metadata:
+    bun model set-meta <key> <value>
+    bun model get-meta [key]              (omit key to list all)
+    bun model clear-meta <key>
+    bun model set-theme <description>     (shortcut for set-meta theme ...)
     bun model get-theme
     bun model clear-theme
 

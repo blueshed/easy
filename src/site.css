@@ -37,27 +37,34 @@ body {
     letter-spacing: 0.02em;
 }
 #metadata-section {
-    margin: 0.5rem 1rem 0.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+    margin-top: 1.5rem;
+}
+.metadata-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 0.75rem;
 }
 .metadata-item {
-    padding: 0.4rem 0.75rem;
-    font-size: 0.75rem;
-    line-height: 1.4;
-    background: #2a2a4a;
+    padding: 0.75rem 1rem;
+    background: #1e1e3a;
     border-radius: 6px;
     border-left: 3px solid #7b68ee;
 }
 .metadata-key {
-    color: #888;
+    display: block;
+    color: #777;
     text-transform: uppercase;
-    font-size: 0.6rem;
-    letter-spacing: 0.05em;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    margin: 0 0 0.25rem;
 }
 .metadata-value {
-    color: #c8b8e8;
+    display: block;
+    color: #d0d0e8;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
 }
 .nav-section {
     font-size: 0.7rem;

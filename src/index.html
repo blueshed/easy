@@ -8,7 +8,6 @@
     <body>
         <nav class="sidenav">
             <h1>Easy</h1>
-            <div id="metadata-section" hidden></div>
             <div class="nav-section">Diagrams</div>
             <a href="#stories" class="nav-link" data-section="stories"
                 >Stories</a
@@ -29,6 +28,10 @@
             <div id="stories" class="section">
                 <h2 class="section-title">Stories</h2>
                 <div id="stories-content"></div>
+                <div id="metadata-section" hidden>
+                    <h3 class="detail-heading">Metadata</h3>
+                    <div id="metadata-content" class="metadata-grid"></div>
+                </div>
             </div>
 
             <div id="usecases" class="section">
@@ -121,16 +124,16 @@
                 .then(function (meta) {
                     var keys = Object.keys(meta);
                     if (keys.length === 0) return;
-                    var section = document.getElementById("metadata-section");
+                    var content = document.getElementById("metadata-content");
                     var html = "";
                     keys.forEach(function (key) {
                         html += '<div class="metadata-item">' +
-                            '<span class="metadata-key">' + esc(key) + '</span> ' +
-                            '<span class="metadata-value">' + esc(meta[key]) + '</span>' +
+                            '<dt class="metadata-key">' + esc(key) + '</dt>' +
+                            '<dd class="metadata-value">' + esc(meta[key]) + '</dd>' +
                             '</div>';
                     });
-                    section.innerHTML = html;
-                    section.hidden = false;
+                    content.innerHTML = html;
+                    document.getElementById("metadata-section").hidden = false;
                 })
                 .catch(function () {});
 
