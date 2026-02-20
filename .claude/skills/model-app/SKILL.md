@@ -54,6 +54,19 @@ Always work top-down in this order:
 9. **Checklists** — CAN/DENIED checks that verify permission enforcement (see guidance below)
 10. **Export** — `bun model export-spec` to generate the spec
 
+## Account Entity
+
+Simple's auth system provides a `user` table (id, name, email). In the model, represent this as an **Account** entity — you must add it before referencing it in relations or expansions:
+
+```bash
+bun model add-entity Account
+bun model add-field Account id number
+bun model add-field Account name string
+bun model add-field Account email string
+```
+
+The `/implement` skill maps Account to the existing `user` table — it does not create a separate table.
+
 ## Actor Conventions
 
 - **visitor** — unauthenticated, can only access public documents (doc functions that skip permission checks)
