@@ -49,6 +49,7 @@ interface Doc {
   entity_name: string;
   collection: number;
   public: number;
+  fetch: string;
 }
 interface Expansion {
   id: number;
@@ -179,7 +180,7 @@ function generateDocumentDiagram(db: Database): string {
   const docs = db
     .query(
       `
-    SELECT d.id, d.name, e.name as entity_name, d.collection, d.public
+    SELECT d.id, d.name, e.name as entity_name, d.collection, d.public, d.fetch
     FROM documents d JOIN entities e ON d.entity_id = e.id ORDER BY d.name
   `,
     )
@@ -191,7 +192,7 @@ function generateDocumentDiagram(db: Database): string {
 
   for (const d of docs) {
     const docAlias = `doc_${d.id}`;
-    const flags = [d.collection ? "collection" : "", d.public ? "public" : ""]
+    const flags = [d.collection ? "collection" : "", d.public ? "public" : "", d.fetch !== "select" ? d.fetch : ""]
       .filter(Boolean)
       .join(", ");
     lines.push(`object "${d.name}" as ${docAlias} <<document>> {`);
@@ -281,7 +282,7 @@ const EMPTY_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="6
 function generateSingleDocumentDiagram(db: Database, docName: string): string {
   const d = db
     .query(
-      `SELECT d.id, d.name, e.name as entity_name, d.collection, d.public
+      `SELECT d.id, d.name, e.name as entity_name, d.collection, d.public, d.fetch
        FROM documents d JOIN entities e ON d.entity_id = e.id WHERE d.name = ?`,
     )
     .get(docName) as Doc | null;
@@ -291,7 +292,7 @@ function generateSingleDocumentDiagram(db: Database, docName: string): string {
   let objCounter = 0;
 
   const docAlias = `doc_${d.id}`;
-  const flags = [d.collection ? "collection" : "", d.public ? "public" : ""]
+  const flags = [d.collection ? "collection" : "", d.public ? "public" : "", d.fetch !== "select" ? d.fetch : ""]
     .filter(Boolean)
     .join(", ");
   lines.push(`object "${d.name}" as ${docAlias} <<document>> {`);
@@ -618,12 +619,13 @@ export function getDocumentList(): {
   entity: string;
   collection: boolean;
   public: boolean;
+  fetch: string;
 }[] {
   const file = Bun.file(DB_PATH);
   const db = openDb(true);
   const docs = db
     .query(
-      `SELECT d.name, e.name as entity FROM documents d
+      `SELECT d.name, e.name as entity, d.collection, d.public, d.fetch FROM documents d
        JOIN entities e ON d.entity_id = e.id ORDER BY d.name`,
     )
     .all() as {
@@ -631,6 +633,7 @@ export function getDocumentList(): {
     entity: string;
     collection: number;
     public: number;
+    fetch: string;
   }[];
   db.close();
   return docs.map((d) => ({
@@ -638,6 +641,7 @@ export function getDocumentList(): {
     entity: d.entity,
     collection: !!d.collection,
     public: !!d.public,
+    fetch: d.fetch,
   }));
 }
 
@@ -646,6 +650,7 @@ export function getDocumentDetail(name: string): {
   entity: string;
   collection: boolean;
   public: boolean;
+  fetch: string;
   methods: {
     name: string;
     args: string;
@@ -660,7 +665,7 @@ export function getDocumentDetail(name: string): {
   const db = openDb(true);
   const doc = db
     .query(
-      `SELECT d.id, d.name, e.name as entity, e.id as entity_id, d.collection, d.public
+      `SELECT d.id, d.name, e.name as entity, e.id as entity_id, d.collection, d.public, d.fetch
        FROM documents d JOIN entities e ON d.entity_id = e.id WHERE d.name = ?`,
     )
     .get(name) as {
@@ -670,6 +675,7 @@ export function getDocumentDetail(name: string): {
     entity_id: number;
     collection: number;
     public: number;
+    fetch: string;
   } | null;
   if (!doc) {
     db.close();
@@ -763,6 +769,7 @@ export function getDocumentDetail(name: string): {
     entity: doc.entity,
     collection: !!doc.collection,
     public: !!doc.public,
+    fetch: doc.fetch,
     methods: methodDetails,
     changedBy,
     stories,

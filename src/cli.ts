@@ -224,19 +224,23 @@ function dispatch(cmd: string, rawArgs: string[]): void {
       const [name, entity] = args;
       if (!name || !entity) {
         console.error(
-          "Usage: bun model add-document <Name> <Entity> [--collection] [--public]",
+          "Usage: bun model add-document <Name> <Entity> [--collection] [--public] [--cursor] [--stream]",
         );
         throw new Error("fail");
       }
       const eid = entityId(entity);
       const collection = flags.collection ? 1 : 0;
       const pub = flags.public ? 1 : 0;
+      const fetchMode = flags.stream ? "stream" : flags.cursor ? "cursor" : "select";
       db.run(
-        "INSERT OR IGNORE INTO documents (name, entity_id, collection, public) VALUES (?, ?, ?, ?)",
-        [name, eid, collection, pub],
+        "INSERT OR IGNORE INTO documents (name, entity_id, collection, public, fetch) VALUES (?, ?, ?, ?, ?)",
+        [name, eid, collection, pub, fetchMode],
       );
+      const tags = [collection ? "collection" : "", pub ? "public" : "", fetchMode !== "select" ? fetchMode : ""]
+        .filter(Boolean)
+        .join(", ");
       console.log(
-        `Document '${name}' -> '${entity}'${collection ? " (collection)" : ""}${pub ? " (public)" : ""} added.`,
+        `Document '${name}' -> '${entity}'${tags ? ` (${tags})` : ""} added.`,
       );
       break;
     }
@@ -946,6 +950,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
         entity_name: string;
         collection: number;
         public: number;
+        fetch: string;
       };
       type Exp = {
         id: number;
@@ -960,7 +965,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
       const docs = db
         .query(
           `
-      SELECT d.id, d.name, e.name as entity_name, d.collection, d.public
+      SELECT d.id, d.name, e.name as entity_name, d.collection, d.public, d.fetch
       FROM documents d JOIN entities e ON d.entity_id = e.id ORDER BY d.name
     `,
         )
@@ -973,6 +978,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
         const flags = [
           d.collection ? "collection" : "",
           d.public ? "public" : "",
+          d.fetch !== "select" ? d.fetch : "",
         ]
           .filter(Boolean)
           .join(", ");
@@ -1042,6 +1048,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
         entity_id: number;
         collection: number;
         public: number;
+        fetch: string;
       };
       type Exp = {
         id: number;
@@ -1249,7 +1256,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
       const docs = db
         .query(
           `
-      SELECT d.id, d.name, e.name as entity_name, e.id as entity_id, d.collection, d.public
+      SELECT d.id, d.name, e.name as entity_name, e.id as entity_id, d.collection, d.public, d.fetch
       FROM documents d JOIN entities e ON d.entity_id = e.id ORDER BY d.name
     `,
         )
@@ -1260,6 +1267,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
           const flags = [
             d.collection ? "collection" : "",
             d.public ? "public" : "",
+            d.fetch !== "select" ? d.fetch : "",
           ]
             .filter(Boolean)
             .join(", ");
@@ -1438,7 +1446,7 @@ function usage() {
     bun model remove-story <id>
 
   Documents:
-    bun model add-document <Name> <Entity> [--collection] [--public]
+    bun model add-document <Name> <Entity> [--collection] [--public] [--cursor] [--stream]
     bun model remove-document <Name>
 
   Expansions:

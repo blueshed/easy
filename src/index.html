@@ -210,6 +210,9 @@
                             (doc.public
                                 ? '<span class="meta-tag public">public</span>'
                                 : "") +
+                            (doc.fetch && doc.fetch !== "select"
+                                ? '<span class="meta-tag ' + doc.fetch + '">' + doc.fetch + '</span>'
+                                : "") +
                             "</div>" +
                             '<div class="diagram-inline" id="diagram-doc-' +
                             doc.name +

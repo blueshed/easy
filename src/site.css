@@ -218,6 +218,14 @@ a.meta-tag:hover {
     color: #4a9;
     border-color: #4a9;
 }
+.meta-tag.cursor {
+    color: #e8a;
+    border-color: #e8a;
+}
+.meta-tag.stream {
+    color: #5de;
+    border-color: #5de;
+}
 
 .detail-heading {
     font-size: 1rem;
