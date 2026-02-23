@@ -43,7 +43,8 @@ export function openDb(readonly = false): Database {
         entity_id INTEGER NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
         collection INTEGER NOT NULL DEFAULT 0,
         public INTEGER NOT NULL DEFAULT 0,
-        fetch TEXT NOT NULL DEFAULT 'select'
+        fetch TEXT NOT NULL DEFAULT 'select',
+        description TEXT NOT NULL DEFAULT ''
       );
 
       -- Expansions: child entities loaded with a document
@@ -138,6 +139,12 @@ export function openDb(readonly = false): Database {
     // Migration: add fetch column to existing databases
     try {
       db.exec(`ALTER TABLE documents ADD COLUMN fetch TEXT NOT NULL DEFAULT 'select'`);
+    } catch {
+      // Column already exists
+    }
+    // Migration: add description column to existing databases
+    try {
+      db.exec(`ALTER TABLE documents ADD COLUMN description TEXT NOT NULL DEFAULT ''`);
     } catch {
       // Column already exists
     }

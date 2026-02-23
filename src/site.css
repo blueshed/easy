@@ -226,6 +226,12 @@ a.meta-tag:hover {
     color: #5de;
     border-color: #5de;
 }
+.doc-description {
+    color: #999;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 1.25rem;
+}
 
 .detail-heading {
     font-size: 1rem;

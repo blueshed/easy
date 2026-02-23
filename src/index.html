@@ -214,6 +214,9 @@
                                 ? '<span class="meta-tag ' + doc.fetch + '">' + doc.fetch + '</span>'
                                 : "") +
                             "</div>" +
+                            (doc.description
+                                ? '<p class="doc-description">' + esc(doc.description) + '</p>'
+                                : "") +
                             '<div class="diagram-inline" id="diagram-doc-' +
                             doc.name +
                             '"></div>' +

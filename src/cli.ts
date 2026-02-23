@@ -224,7 +224,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
       const [name, entity] = args;
       if (!name || !entity) {
         console.error(
-          "Usage: bun model add-document <Name> <Entity> [--collection] [--public] [--cursor] [--stream]",
+          "Usage: bun model add-document <Name> <Entity> [--collection] [--public] [--cursor] [--stream] [--description <text>]",
         );
         throw new Error("fail");
       }
@@ -232,9 +232,10 @@ function dispatch(cmd: string, rawArgs: string[]): void {
       const collection = flags.collection ? 1 : 0;
       const pub = flags.public ? 1 : 0;
       const fetchMode = flags.stream ? "stream" : flags.cursor ? "cursor" : "select";
+      const description = typeof flags.description === "string" ? flags.description : "";
       db.run(
-        "INSERT OR IGNORE INTO documents (name, entity_id, collection, public, fetch) VALUES (?, ?, ?, ?, ?)",
-        [name, eid, collection, pub, fetchMode],
+        "INSERT OR IGNORE INTO documents (name, entity_id, collection, public, fetch, description) VALUES (?, ?, ?, ?, ?, ?)",
+        [name, eid, collection, pub, fetchMode, description],
       );
       const tags = [collection ? "collection" : "", pub ? "public" : "", fetchMode !== "select" ? fetchMode : ""]
         .filter(Boolean)
@@ -951,6 +952,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
         collection: number;
         public: number;
         fetch: string;
+        description: string;
       };
       type Exp = {
         id: number;
@@ -965,7 +967,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
       const docs = db
         .query(
           `
-      SELECT d.id, d.name, e.name as entity_name, d.collection, d.public, d.fetch
+      SELECT d.id, d.name, e.name as entity_name, d.collection, d.public, d.fetch, d.description
       FROM documents d JOIN entities e ON d.entity_id = e.id ORDER BY d.name
     `,
         )
@@ -983,7 +985,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
           .filter(Boolean)
           .join(", ");
         console.log(
-          `${d.name} -> ${d.entity_name}${flags ? ` (${flags})` : ""}`,
+          `${d.name} -> ${d.entity_name}${flags ? ` (${flags})` : ""}${d.description ? ` — ${d.description}` : ""}`,
         );
         const exps = db
           .query(
@@ -1049,6 +1051,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
         collection: number;
         public: number;
         fetch: string;
+        description: string;
       };
       type Exp = {
         id: number;
@@ -1256,7 +1259,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
       const docs = db
         .query(
           `
-      SELECT d.id, d.name, e.name as entity_name, e.id as entity_id, d.collection, d.public, d.fetch
+      SELECT d.id, d.name, e.name as entity_name, e.id as entity_id, d.collection, d.public, d.fetch, d.description
       FROM documents d JOIN entities e ON d.entity_id = e.id ORDER BY d.name
     `,
         )
@@ -1272,6 +1275,7 @@ function dispatch(cmd: string, rawArgs: string[]): void {
             .filter(Boolean)
             .join(", ");
           out.push(`### ${d.name}\n`);
+          if (d.description) out.push(`${d.description}\n`);
           out.push(
             `- **Entity:** ${d.entity_name}${flags ? ` (${flags})` : ""}`,
           );
@@ -1446,7 +1450,7 @@ function usage() {
     bun model remove-story <id>
 
   Documents:
-    bun model add-document <Name> <Entity> [--collection] [--public] [--cursor] [--stream]
+    bun model add-document <Name> <Entity> [--collection] [--public] [--cursor] [--stream] [--description <text>]
     bun model remove-document <Name>
 
   Expansions:

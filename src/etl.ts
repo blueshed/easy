@@ -50,6 +50,7 @@ interface Doc {
   collection: number;
   public: number;
   fetch: string;
+  description: string;
 }
 interface Expansion {
   id: number;
@@ -180,7 +181,7 @@ function generateDocumentDiagram(db: Database): string {
   const docs = db
     .query(
       `
-    SELECT d.id, d.name, e.name as entity_name, d.collection, d.public, d.fetch
+    SELECT d.id, d.name, e.name as entity_name, d.collection, d.public, d.fetch, d.description
     FROM documents d JOIN entities e ON d.entity_id = e.id ORDER BY d.name
   `,
     )
@@ -282,7 +283,7 @@ const EMPTY_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="6
 function generateSingleDocumentDiagram(db: Database, docName: string): string {
   const d = db
     .query(
-      `SELECT d.id, d.name, e.name as entity_name, d.collection, d.public, d.fetch
+      `SELECT d.id, d.name, e.name as entity_name, d.collection, d.public, d.fetch, d.description
        FROM documents d JOIN entities e ON d.entity_id = e.id WHERE d.name = ?`,
     )
     .get(docName) as Doc | null;
@@ -620,12 +621,13 @@ export function getDocumentList(): {
   collection: boolean;
   public: boolean;
   fetch: string;
+  description: string;
 }[] {
   const file = Bun.file(DB_PATH);
   const db = openDb(true);
   const docs = db
     .query(
-      `SELECT d.name, e.name as entity, d.collection, d.public, d.fetch FROM documents d
+      `SELECT d.name, e.name as entity, d.collection, d.public, d.fetch, d.description FROM documents d
        JOIN entities e ON d.entity_id = e.id ORDER BY d.name`,
     )
     .all() as {
@@ -634,6 +636,7 @@ export function getDocumentList(): {
     collection: number;
     public: number;
     fetch: string;
+    description: string;
   }[];
   db.close();
   return docs.map((d) => ({
@@ -642,6 +645,7 @@ export function getDocumentList(): {
     collection: !!d.collection,
     public: !!d.public,
     fetch: d.fetch,
+    description: d.description,
   }));
 }
 
@@ -651,6 +655,7 @@ export function getDocumentDetail(name: string): {
   collection: boolean;
   public: boolean;
   fetch: string;
+  description: string;
   methods: {
     name: string;
     args: string;
@@ -665,7 +670,7 @@ export function getDocumentDetail(name: string): {
   const db = openDb(true);
   const doc = db
     .query(
-      `SELECT d.id, d.name, e.name as entity, e.id as entity_id, d.collection, d.public, d.fetch
+      `SELECT d.id, d.name, e.name as entity, e.id as entity_id, d.collection, d.public, d.fetch, d.description
        FROM documents d JOIN entities e ON d.entity_id = e.id WHERE d.name = ?`,
     )
     .get(name) as {
@@ -676,6 +681,7 @@ export function getDocumentDetail(name: string): {
     collection: number;
     public: number;
     fetch: string;
+    description: string;
   } | null;
   if (!doc) {
     db.close();
@@ -770,6 +776,7 @@ export function getDocumentDetail(name: string): {
     collection: !!doc.collection,
     public: !!doc.public,
     fetch: doc.fetch,
+    description: doc.description,
     methods: methodDetails,
     changedBy,
     stories,

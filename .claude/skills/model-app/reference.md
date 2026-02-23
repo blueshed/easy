@@ -16,7 +16,7 @@ Stories:
   bun model remove-story <id>
 
 Documents:
-  bun model add-document <Name> <Entity> [--collection] [--public]
+  bun model add-document <Name> <Entity> [--collection] [--public] [--cursor] [--stream] [--description <text>]
   bun model remove-document <Name>
 
 Expansions:
@@ -110,6 +110,9 @@ bun model add-document RoomDoc Room
 
 # Collection document with public access — openDoc("room_list", 0)
 bun model add-document RoomList Room --collection --public
+
+# Document with description — explains filtering or purpose
+bun model add-document ActiveRooms Room --collection --description "Rooms where archived = false, ordered by created_at desc"
 ```
 
 ### Expansions
