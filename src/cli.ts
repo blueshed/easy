@@ -154,7 +154,9 @@ function dispatch(cmd: string, rawArgs: string[]): void {
         usage();
         throw new Error("fail");
       }
-      db.run("DELETE FROM entities WHERE name = ?", [name]);
+      const eid = entityId(name);
+      db.run("DELETE FROM story_links WHERE target_type = 'entity' AND target_id = ?", [eid]);
+      db.run("DELETE FROM entities WHERE id = ?", [eid]);
       console.log(`Entity '${name}' removed.`);
       break;
     }
@@ -251,7 +253,9 @@ function dispatch(cmd: string, rawArgs: string[]): void {
         console.error("Usage: bun model remove-document <Name>");
         throw new Error("fail");
       }
-      db.run("DELETE FROM documents WHERE name = ?", [name]);
+      const did = documentId(name);
+      db.run("DELETE FROM story_links WHERE target_type = 'document' AND target_id = ?", [did]);
+      db.run("DELETE FROM documents WHERE id = ?", [did]);
       console.log(`Document '${name}' removed.`);
       break;
     }
@@ -348,11 +352,9 @@ function dispatch(cmd: string, rawArgs: string[]): void {
         console.error("Usage: bun model remove-method <Entity> <name>");
         throw new Error("fail");
       }
-      const eid = entityId(entity);
-      db.run("DELETE FROM methods WHERE entity_id = ? AND name = ?", [
-        eid,
-        name,
-      ]);
+      const mid = methodId(`${entity}.${name}`);
+      db.run("DELETE FROM story_links WHERE target_type = 'method' AND target_id = ?", [mid]);
+      db.run("DELETE FROM methods WHERE id = ?", [mid]);
       console.log(`Method '${entity}.${name}' removed.`);
       break;
     }
@@ -1394,6 +1396,87 @@ function dispatch(cmd: string, rawArgs: string[]): void {
       break;
     }
 
+    case "doctor": {
+      let total = 0;
+
+      // Orphaned story_links (polymorphic FK — no real constraint)
+      const badMethodLinks = db
+        .query(
+          "SELECT id FROM story_links WHERE target_type = 'method' AND target_id NOT IN (SELECT id FROM methods)",
+        )
+        .all() as { id: number }[];
+      const badEntityLinks = db
+        .query(
+          "SELECT id FROM story_links WHERE target_type = 'entity' AND target_id NOT IN (SELECT id FROM entities)",
+        )
+        .all() as { id: number }[];
+      const badDocLinks = db
+        .query(
+          "SELECT id FROM story_links WHERE target_type = 'document' AND target_id NOT IN (SELECT id FROM documents)",
+        )
+        .all() as { id: number }[];
+      const badNotifLinks = db
+        .query(
+          "SELECT id FROM story_links WHERE target_type = 'notification' AND target_id NOT IN (SELECT id FROM notifications)",
+        )
+        .all() as { id: number }[];
+      const orphanedLinks = [
+        ...badMethodLinks,
+        ...badEntityLinks,
+        ...badDocLinks,
+        ...badNotifLinks,
+      ];
+      if (orphanedLinks.length > 0) {
+        console.log(
+          `  ${orphanedLinks.length} orphaned story_links (method:${badMethodLinks.length} entity:${badEntityLinks.length} document:${badDocLinks.length} notification:${badNotifLinks.length})`,
+        );
+        total += orphanedLinks.length;
+      }
+
+      // Orphaned checks (method_id points to deleted method)
+      const badChecks = db
+        .query(
+          "SELECT id FROM checks WHERE method_id IS NOT NULL AND method_id NOT IN (SELECT id FROM methods)",
+        )
+        .all() as { id: number }[];
+      if (badChecks.length > 0) {
+        console.log(
+          `  ${badChecks.length} orphaned checks (method deleted)`,
+        );
+        total += badChecks.length;
+      }
+
+      // Orphaned check_deps (either side deleted)
+      const badDeps = db
+        .query(
+          "SELECT id FROM check_deps WHERE check_id NOT IN (SELECT id FROM checks) OR depends_on_id NOT IN (SELECT id FROM checks)",
+        )
+        .all() as { id: number }[];
+      if (badDeps.length > 0) {
+        console.log(
+          `  ${badDeps.length} orphaned check_deps`,
+        );
+        total += badDeps.length;
+      }
+
+      if (total === 0) {
+        console.log("No orphaned references found.");
+      } else if (flags.fix) {
+        for (const l of orphanedLinks)
+          db.run("DELETE FROM story_links WHERE id = ?", [l.id]);
+        for (const c of badChecks)
+          db.run("DELETE FROM checks WHERE id = ?", [c.id]);
+        for (const d of badDeps)
+          db.run("DELETE FROM check_deps WHERE id = ?", [d.id]);
+        console.log(`Removed ${total} orphaned rows.`);
+      } else {
+        console.log(
+          `\n${total} orphaned rows total. Run with --fix to remove them.`,
+        );
+      }
+      break;
+    }
+
     default:
       console.error(`Unknown command: ${cmd}`);
       usage();
@@ -1501,6 +1584,10 @@ function usage() {
     bun model confirm-check <check_id> --api|--ux
     bun model unconfirm-check <check_id> --api|--ux
     bun model list-checks [checklist]
+
+  Maintenance:
+    bun model doctor             (report orphaned references)
+    bun model doctor --fix       (remove orphaned references)
 
   Batch:
     bun model batch              (reads JSONL from stdin)`);

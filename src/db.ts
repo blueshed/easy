@@ -1,10 +1,16 @@
 import { Database } from "bun:sqlite";
 import { resolve } from "path";
 
+export function getDbPath(): string {
+  return resolve(process.env.MODEL_DB ?? "model.db");
+}
+
+/** @deprecated Use getDbPath() for lazy evaluation */
 export const DB_PATH = resolve(process.env.MODEL_DB ?? "model.db");
 
 export function openDb(readonly = false): Database {
-  const db = new Database(DB_PATH, readonly ? { readonly: true } : undefined);
+  const db = new Database(getDbPath(), readonly ? { readonly: true } : undefined);
+  db.exec("PRAGMA foreign_keys = ON");
   if (!readonly) {
     db.exec(`
       -- Entities: database tables

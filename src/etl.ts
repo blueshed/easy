@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { DB_PATH, openDb } from "./db";
+import { getDbPath, openDb } from "./db";
 
 const PLANTUML_URL = process.env.PLANTUML_URL ?? "http://localhost:8081";
 
@@ -406,7 +406,7 @@ function generateSingleEntityDiagram(db: Database, entityName: string): string {
 // --- Public API ---
 
 export async function etl(): Promise<Record<string, string>> {
-  const file = Bun.file(DB_PATH);
+  const file = Bun.file(getDbPath());
   if (!(await file.exists()))
     return { entities: EMPTY_SVG, usecases: EMPTY_SVG, documents: EMPTY_SVG };
 
@@ -426,7 +426,7 @@ export async function etl(): Promise<Record<string, string>> {
 }
 
 export async function documentDiagram(name: string): Promise<string> {
-  const file = Bun.file(DB_PATH);
+  const file = Bun.file(getDbPath());
   if (!(await file.exists())) return EMPTY_SVG;
   const db = openDb(true);
   const puml = generateSingleDocumentDiagram(db, name);
@@ -435,7 +435,7 @@ export async function documentDiagram(name: string): Promise<string> {
 }
 
 export async function entityDiagram(name: string): Promise<string> {
-  const file = Bun.file(DB_PATH);
+  const file = Bun.file(getDbPath());
   if (!(await file.exists())) return EMPTY_SVG;
   const db = openDb(true);
   const puml = generateSingleEntityDiagram(db, name);
@@ -623,7 +623,7 @@ export function getDocumentList(): {
   fetch: string;
   description: string;
 }[] {
-  const file = Bun.file(DB_PATH);
+  const file = Bun.file(getDbPath());
   const db = openDb(true);
   const docs = db
     .query(
@@ -792,7 +792,7 @@ export function getStories(): {
   description: string;
   links: { type: string; name: string }[];
 }[] {
-  const file = Bun.file(DB_PATH);
+  const file = Bun.file(getDbPath());
   // Sync check — for the HTML template
   const db = openDb(true);
   const stories = db
