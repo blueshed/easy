@@ -11,4 +11,4 @@ COPY README.md ./
 
 EXPOSE 8080
 
-CMD ["bun", "run", "--watch", "src/site.ts"]
+CMD ["bun", "run", "src/site.ts"]

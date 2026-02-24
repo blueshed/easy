@@ -4,3 +4,4 @@ spec.md
 .git/
 .DS_Store
 .claude/settings.local.json
+test-compose.yml

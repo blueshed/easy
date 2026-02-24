@@ -536,3 +536,78 @@ a.change-tag:hover {
     margin-left: auto;
     flex-shrink: 0;
 }
+
+/* Reference page */
+.ref-intro {
+    color: #888;
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+    line-height: 1.5;
+}
+.ref-code {
+    font-family: ui-monospace, monospace;
+    font-size: 0.85em;
+    background: #2a2a4a;
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    color: #c0c0e0;
+}
+.ref-group {
+    margin-bottom: 2rem;
+}
+.ref-group-title {
+    font-size: 1rem;
+    color: #a0a0c0;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+}
+.ref-group-desc {
+    color: #777;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+}
+.ref-cmd {
+    background: #2a2a4a;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    border-left: 3px solid #7c83ff;
+}
+.ref-syntax {
+    font-family: ui-monospace, monospace;
+    font-size: 0.85rem;
+    color: #e0e0e0;
+    margin-bottom: 0.3rem;
+    word-break: break-all;
+}
+.ref-desc {
+    color: #999;
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+.ref-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.4rem;
+}
+.ref-flag {
+    font-family: ui-monospace, monospace;
+    font-size: 0.7rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+    background: #1a1a2e;
+    border: 1px solid #4a9;
+    color: #4a9;
+}
+.ref-example {
+    font-family: ui-monospace, monospace;
+    font-size: 0.78rem;
+    color: #7a7aaa;
+    background: #1a1a2e;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    margin-top: 0.4rem;
+    overflow-x: auto;
+}

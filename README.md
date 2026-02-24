@@ -51,20 +51,79 @@ Add to your project's `compose.yml`:
 
 ## Commands
 
-```
-Entities:     add-entity, add-field, add-relation, remove-*
-Stories:      add-story, remove-story, link-story, unlink-story
-Documents:    add-document, remove-document
-Expansions:   add-expansion, remove-expansion
-Methods:      add-method, remove-method, add-permission, remove-permission
-Publish:      add-publish
-Checklists:   add-checklist, add-check, add-check-dep, confirm-check
-Listing:      list, list-stories, list-documents, list-checks
-Export:        export-spec
-Batch:         batch (reads JSONL from stdin)
-```
-
 All commands: `docker compose exec easy bun model <command> [args]`
+
+```
+Entities:
+  add-entity <Name>
+  add-field <Entity> <field> [type]
+  add-relation <From> <To> [label] [cardinality]
+  remove-entity <Name>
+  remove-field <Entity> <field>
+  remove-relation <From> <To> [label]
+
+Stories:
+  add-story <actor> <action> [description]
+  remove-story <id>
+  link-story <story_id> <target_type> <target_name>
+  unlink-story <story_id> <target_type> <target_name>
+
+Documents:
+  add-document <Name> <Entity> [--collection] [--public] [--cursor] [--stream] [--description <text>]
+  remove-document <Name>
+
+Expansions:
+  add-expansion <Document> <name> <Entity> <foreign_key> [--belongs-to] [--shallow] [--parent <name>]
+  remove-expansion <Document> <name>
+
+Methods:
+  add-method <Entity> <name> [args_json] [return_type] [--no-auth] [--permission <path>]
+  remove-method <Entity> <name>
+
+Publish / Notify:
+  add-publish <Entity.method> <property>
+  remove-publish <Entity.method> <property>
+  add-notification <Entity.method> <channel> <recipients> [payload_json]
+  remove-notification <Entity.method> <channel>
+
+Permissions:
+  add-permission <Entity.method> <path> [description]
+  remove-permission <id>
+
+Checklists:
+  add-checklist <name> [description]
+  remove-checklist <name>
+  add-check <checklist> <actor> <Entity.method> [description] [--denied] [--after <check_id>]
+  remove-check <check_id>
+  add-check-dep <check_id> <depends_on_id>
+  remove-check-dep <check_id> <depends_on_id>
+  confirm-check <check_id> --api|--ux
+  unconfirm-check <check_id> --api|--ux
+  list-checks [checklist]
+
+Metadata:
+  set-meta <key> <value>
+  get-meta [key]
+  clear-meta <key>
+  set-theme <description>
+  get-theme
+  clear-theme
+
+Listing:
+  list
+  list-stories
+  list-documents
+
+Export:
+  export-spec
+
+Maintenance:
+  doctor
+  doctor --fix
+
+Batch:
+  batch                    (reads JSONL from stdin)
+```
 
 ## Model site
 
@@ -75,10 +134,11 @@ The site at http://localhost:8080 shows:
 - **Document** pages with expansion trees, changed-by entities, methods, and linked stories
 - **Entity** pages with fields, change targets, methods (with permissions and publishes), and related documents
 - **Checklists** with CAN/DENIED checks and API/UX confirmation tracking
+- **Reference** — full CLI command reference with syntax, descriptions, flags, and examples
 
 ## How it works
 
-The model is stored in `model.db` (SQLite, mounted as a volume). The CLI writes to it, the site reads from it. `export-spec` produces a standalone Markdown spec suitable for `/implement` in a Simple project.
+The model is stored in `model.db` (SQLite with foreign keys enabled, mounted as a volume). The CLI writes to it, the site reads from it. `export-spec` produces a standalone Markdown spec suitable for `/implement` in a Simple project.
 
 ### Change targets
 
@@ -103,13 +163,23 @@ cat <<'EOF' | docker compose exec -T easy bun model batch
 EOF
 ```
 
+### Database maintenance
+
+The `doctor` command reports orphaned references — story links, checks, or check dependencies pointing to deleted entities, methods, or documents. Use `--fix` to remove them:
+
+```bash
+docker compose exec easy bun model doctor
+docker compose exec easy bun model doctor --fix
+```
+
 ## Architecture
 
 | File | Purpose |
 |------|---------|
 | `src/cli.ts` | CLI commands and `export-spec` |
-| `src/db.ts` | SQLite schema and `openDb()` helper |
+| `src/db.ts` | SQLite schema, foreign keys, and `openDb()` helper |
 | `src/etl.ts` | Site API queries and PlantUML diagram generation |
-| `src/site.ts` | Bun HTTP server on port 8080 |
+| `src/site.ts` | Bun HTTP server on port 8080 with parameterized routes |
+| `src/reference.ts` | Structured CLI reference data served to the site |
 | `src/index.html` | Single-page visualization app |
 | `src/site.css` | Dark theme styles |

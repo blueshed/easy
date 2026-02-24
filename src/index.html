@@ -18,6 +18,9 @@
             <a href="#entities" class="nav-link" data-section="entities"
                 >Entities</a
             >
+            <a href="#reference" class="nav-link" data-section="reference"
+                >Reference</a
+            >
             <div class="nav-section">Documents</div>
             <div id="doc-nav"></div>
             <div class="nav-section">Checklists</div>
@@ -52,6 +55,12 @@
                     </div>
                 </div>
                 <div class="diagram-inline" id="diagram-entities"></div>
+            </div>
+
+            <div id="reference" class="section">
+                <h2 class="section-title">CLI Reference</h2>
+                <p class="ref-intro">All commands use the prefix <code class="ref-code">bun model</code> (or <code class="ref-code">docker compose exec easy bun model</code> from outside the container).</p>
+                <div id="reference-content"></div>
             </div>
 
             <!-- Document, entity, and checklist pages are created dynamically -->
@@ -690,6 +699,39 @@
                 });
                 el.innerHTML = html;
             }
+
+            // Load reference
+            fetch("/api/reference")
+                .then(function (r) { return r.json(); })
+                .then(function (groups) {
+                    var el = document.getElementById("reference-content");
+                    var html = "";
+                    groups.forEach(function (g) {
+                        html += '<div class="ref-group">';
+                        html += '<h3 class="ref-group-title">' + esc(g.title) + '</h3>';
+                        if (g.description) {
+                            html += '<p class="ref-group-desc">' + esc(g.description) + '</p>';
+                        }
+                        g.commands.forEach(function (c) {
+                            html += '<div class="ref-cmd">';
+                            html += '<div class="ref-syntax">bun model ' + esc(c.syntax) + '</div>';
+                            html += '<div class="ref-desc">' + esc(c.description) + '</div>';
+                            if (c.flags && c.flags.length > 0) {
+                                html += '<div class="ref-flags">';
+                                c.flags.forEach(function (f) {
+                                    html += '<span class="ref-flag">' + esc(f) + '</span>';
+                                });
+                                html += '</div>';
+                            }
+                            if (c.example) {
+                                html += '<div class="ref-example">bun model ' + esc(c.example) + '</div>';
+                            }
+                            html += '</div>';
+                        });
+                        html += '</div>';
+                    });
+                    el.innerHTML = html;
+                });
 
             function navigate() {
                 var hash = location.hash.slice(1) || "stories";

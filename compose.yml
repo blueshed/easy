@@ -8,7 +8,15 @@ services:
     volumes:
       - ./model.db:/app/model.db
     depends_on:
-      - plantuml
+      plantuml:
+        condition: service_healthy
 
   plantuml:
     image: plantuml/plantuml-server:jetty
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080"]
+      interval: 5s
+      timeout: 3s
+      retries: 5

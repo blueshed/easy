@@ -1,4 +1,4 @@
-import { DB_PATH } from "./db";
+import { getDbPath } from "./db";
 import {
   etl,
   documentDiagram,
@@ -12,13 +12,14 @@ import {
   getChecklistDetail,
   getMetadata,
 } from "./etl";
+import { REFERENCE } from "./reference";
 import homepage from "./index.html";
 
 let cachedDiagrams: Record<string, string> | null = null;
 let cachedMtime: number = 0;
 
 async function getDiagrams(): Promise<Record<string, string>> {
-  const file = Bun.file(DB_PATH);
+  const file = Bun.file(getDbPath());
   const mtime = (await file.exists()) ? (await file.stat()).mtimeMs : 0;
   if (cachedDiagrams && mtime === cachedMtime) return cachedDiagrams;
   cachedDiagrams = await etl();
@@ -31,123 +32,96 @@ const SVG_HEADERS = {
   "Cache-Control": "no-cache",
 };
 
+function svgResponse(svg: string) {
+  return new Response(svg, { headers: SVG_HEADERS });
+}
+
 const server = Bun.serve({
   port: 8080,
   routes: {
     "/": homepage,
 
+    // --- List endpoints ---
+
     "/api/documents": () => {
-      try {
-        return Response.json(getDocumentList());
-      } catch {
-        return Response.json([]);
-      }
+      try { return Response.json(getDocumentList()); }
+      catch { return Response.json([]); }
     },
 
     "/api/stories": () => {
-      try {
-        return Response.json(getStories());
-      } catch {
-        return Response.json([]);
-      }
+      try { return Response.json(getStories()); }
+      catch { return Response.json([]); }
     },
 
     "/api/entities": () => {
-      try {
-        return Response.json(getEntityList());
-      } catch {
-        return Response.json([]);
-      }
+      try { return Response.json(getEntityList()); }
+      catch { return Response.json([]); }
     },
 
     "/api/checklists": () => {
-      try {
-        return Response.json(getChecklistList());
-      } catch {
-        return Response.json([]);
-      }
+      try { return Response.json(getChecklistList()); }
+      catch { return Response.json([]); }
     },
 
     "/api/metadata": () => {
+      try { return Response.json(getMetadata()); }
+      catch { return Response.json({}); }
+    },
+
+    "/api/reference": () => Response.json(REFERENCE),
+
+    // --- Detail endpoints ---
+
+    "/api/documents/:name": (req) => {
       try {
-        return Response.json(getMetadata());
+        const detail = getDocumentDetail(req.params.name);
+        if (!detail) return Response.json({ error: "not found" }, { status: 404 });
+        return Response.json(detail);
       } catch {
-        return Response.json({});
+        return Response.json({ error: "no database" }, { status: 500 });
       }
     },
 
-    "/diagram/entities.svg": async () => {
-      const d = await getDiagrams();
-      return new Response(d.entities, { headers: SVG_HEADERS });
+    "/api/entities/:name": (req) => {
+      try {
+        const detail = getEntityDetail(req.params.name);
+        if (!detail) return Response.json({ error: "not found" }, { status: 404 });
+        return Response.json(detail);
+      } catch {
+        return Response.json({ error: "no database" }, { status: 500 });
+      }
     },
-    "/diagram/usecases.svg": async () => {
-      const d = await getDiagrams();
-      return new Response(d.usecases, { headers: SVG_HEADERS });
+
+    "/api/checklists/:name": (req) => {
+      try {
+        const detail = getChecklistDetail(req.params.name);
+        if (!detail) return Response.json({ error: "not found" }, { status: 404 });
+        return Response.json(detail);
+      } catch {
+        return Response.json({ error: "no database" }, { status: 500 });
+      }
     },
-    "/diagram/documents.svg": async () => {
-      const d = await getDiagrams();
-      return new Response(d.documents, { headers: SVG_HEADERS });
+
+    // --- Overview diagrams ---
+
+    "/diagram/entities.svg": async () => svgResponse((await getDiagrams()).entities),
+    "/diagram/usecases.svg": async () => svgResponse((await getDiagrams()).usecases),
+    "/diagram/documents.svg": async () => svgResponse((await getDiagrams()).documents),
+
+    // --- Per-item diagrams ---
+
+    "/diagram/doc/:name": async (req) => {
+      const name = req.params.name.replace(/\.svg$/, "");
+      return svgResponse(await documentDiagram(decodeURIComponent(name)));
+    },
+
+    "/diagram/entity/:name": async (req) => {
+      const name = req.params.name.replace(/\.svg$/, "");
+      return svgResponse(await entityDiagram(decodeURIComponent(name)));
     },
   },
 
-  fetch(req) {
-    const url = new URL(req.url);
-
-    // /api/documents/:name
-    const apiMatch = url.pathname.match(/^\/api\/documents\/(.+)$/);
-    if (apiMatch) {
-      try {
-        const detail = getDocumentDetail(decodeURIComponent(apiMatch[1]));
-        if (!detail)
-          return Response.json({ error: "not found" }, { status: 404 });
-        return Response.json(detail);
-      } catch {
-        return Response.json({ error: "no database" }, { status: 500 });
-      }
-    }
-
-    // /api/checklists/:name
-    const checklistApiMatch = url.pathname.match(/^\/api\/checklists\/(.+)$/);
-    if (checklistApiMatch) {
-      try {
-        const detail = getChecklistDetail(decodeURIComponent(checklistApiMatch[1]));
-        if (!detail)
-          return Response.json({ error: "not found" }, { status: 404 });
-        return Response.json(detail);
-      } catch {
-        return Response.json({ error: "no database" }, { status: 500 });
-      }
-    }
-
-    // /api/entities/:name
-    const entityApiMatch = url.pathname.match(/^\/api\/entities\/(.+)$/);
-    if (entityApiMatch) {
-      try {
-        const detail = getEntityDetail(decodeURIComponent(entityApiMatch[1]));
-        if (!detail)
-          return Response.json({ error: "not found" }, { status: 404 });
-        return Response.json(detail);
-      } catch {
-        return Response.json({ error: "no database" }, { status: 500 });
-      }
-    }
-
-    // /diagram/doc/:name.svg
-    const svgMatch = url.pathname.match(/^\/diagram\/doc\/(.+)\.svg$/);
-    if (svgMatch) {
-      return documentDiagram(decodeURIComponent(svgMatch[1])).then(
-        (svg) => new Response(svg, { headers: SVG_HEADERS }),
-      );
-    }
-
-    // /diagram/entity/:name.svg
-    const entitySvgMatch = url.pathname.match(/^\/diagram\/entity\/(.+)\.svg$/);
-    if (entitySvgMatch) {
-      return entityDiagram(decodeURIComponent(entitySvgMatch[1])).then(
-        (svg) => new Response(svg, { headers: SVG_HEADERS }),
-      );
-    }
-
+  fetch() {
     return new Response("Not found", { status: 404 });
   },
 });
