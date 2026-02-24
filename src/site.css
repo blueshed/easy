@@ -538,13 +538,39 @@ a.change-tag:hover {
 }
 
 /* Reference page */
-.ref-intro {
-    color: #888;
-    font-size: 0.9rem;
-    margin-bottom: 2rem;
-    line-height: 1.5;
+.md-content {
+    line-height: 1.6;
+    color: #c0c0d8;
 }
-.ref-code {
+.md-content h1.md-h {
+    font-size: 1.4rem;
+    color: #e0e0f0;
+    margin: 0 0 1rem;
+    border-bottom: 1px solid #3a3a5a;
+    padding-bottom: 0.5rem;
+}
+.md-content h2.md-h {
+    font-size: 1.1rem;
+    color: #a0a0c0;
+    margin: 2rem 0 0.75rem;
+    border-bottom: 1px solid #2a2a4a;
+    padding-bottom: 0.3rem;
+}
+.md-content h3.md-h {
+    font-size: 0.95rem;
+    color: #8888b0;
+    margin: 1.5rem 0 0.5rem;
+}
+.md-content h4.md-h {
+    font-size: 0.88rem;
+    color: #8888b0;
+    margin: 1rem 0 0.4rem;
+}
+.md-p {
+    margin: 0.5rem 0;
+    font-size: 0.88rem;
+}
+.md-code {
     font-family: ui-monospace, monospace;
     font-size: 0.85em;
     background: #2a2a4a;
@@ -552,62 +578,45 @@ a.change-tag:hover {
     border-radius: 3px;
     color: #c0c0e0;
 }
-.ref-group {
-    margin-bottom: 2rem;
-}
-.ref-group-title {
-    font-size: 1rem;
-    color: #a0a0c0;
-    font-weight: 600;
-    margin-bottom: 0.4rem;
-}
-.ref-group-desc {
-    color: #777;
-    font-size: 0.85rem;
-    line-height: 1.5;
-    margin-bottom: 0.75rem;
-}
-.ref-cmd {
-    background: #2a2a4a;
+.md-pre {
+    background: #1a1a2e;
     border-radius: 6px;
     padding: 0.75rem 1rem;
-    margin-bottom: 0.5rem;
+    margin: 0.5rem 0;
+    overflow-x: auto;
     border-left: 3px solid #7c83ff;
 }
-.ref-syntax {
+.md-pre code {
     font-family: ui-monospace, monospace;
-    font-size: 0.85rem;
-    color: #e0e0e0;
-    margin-bottom: 0.3rem;
-    word-break: break-all;
-}
-.ref-desc {
-    color: #999;
     font-size: 0.82rem;
-    line-height: 1.4;
+    color: #c8c8e0;
+    white-space: pre;
 }
-.ref-flags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    margin-top: 0.4rem;
+.md-ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+    font-size: 0.88rem;
 }
-.ref-flag {
-    font-family: ui-monospace, monospace;
-    font-size: 0.7rem;
-    padding: 0.15rem 0.45rem;
-    border-radius: 3px;
-    background: #1a1a2e;
-    border: 1px solid #4a9;
-    color: #4a9;
+.md-ul li {
+    margin: 0.25rem 0;
 }
-.ref-example {
-    font-family: ui-monospace, monospace;
-    font-size: 0.78rem;
-    color: #7a7aaa;
-    background: #1a1a2e;
-    padding: 0.4rem 0.6rem;
-    border-radius: 4px;
-    margin-top: 0.4rem;
-    overflow-x: auto;
+.md-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.5rem 0;
+    font-size: 0.85rem;
+}
+.md-table th,
+.md-table td {
+    text-align: left;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #3a3a5a;
+}
+.md-table th {
+    background: #2a2a4a;
+    color: #a0a0c0;
+    font-weight: 600;
+}
+.md-table td {
+    color: #c0c0d8;
 }

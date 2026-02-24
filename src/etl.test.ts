@@ -28,65 +28,102 @@ function run(...args: string[]) {
   });
 }
 
+function save(schema: string, obj: Record<string, unknown>) {
+  run("save", schema, JSON.stringify(obj));
+}
+
 beforeAll(() => {
   try { unlinkSync(DB); } catch {}
 
   // Build a model via CLI to populate the test DB
-  run("add-entity", "User");
-  run("add-field", "User", "email", "string");
-  run("add-field", "User", "name", "string");
+  save("entity", {
+    name: "User",
+    fields: [{ name: "email", type: "string" }, { name: "name", type: "string" }],
+    methods: [
+      { name: "register", args: [{ name: "email", type: "string" }], return_type: "User", auth_required: false },
+    ],
+  });
 
-  run("add-entity", "Project");
-  run("add-field", "Project", "title", "string");
-  run("add-field", "Project", "owner_id", "number");
+  save("entity", {
+    name: "Project",
+    fields: [{ name: "title", type: "string" }, { name: "owner_id", type: "number" }],
+    methods: [
+      {
+        name: "create",
+        args: [{ name: "title", type: "string" }],
+        return_type: "Project",
+        publishes: ["title", "owner_id"],
+      },
+    ],
+  });
 
-  run("add-entity", "Task");
-  run("add-field", "Task", "project_id", "number");
-  run("add-field", "Task", "assignee_id", "number");
-  run("add-field", "Task", "summary", "string");
+  save("entity", {
+    name: "Task",
+    fields: [{ name: "project_id", type: "number" }, { name: "assignee_id", type: "number" }, { name: "summary", type: "string" }],
+    methods: [
+      {
+        name: "assign",
+        args: [{ name: "user_id", type: "number" }],
+        return_type: "boolean",
+        permissions: ["project_id.owner_id"],
+        notifications: [{ channel: "task-assigned", recipients: "assignee_id", payload: '{"task_id":"number"}' }],
+      },
+    ],
+  });
 
-  run("add-entity", "Comment");
-  run("add-field", "Comment", "task_id", "number");
-  run("add-field", "Comment", "body", "string");
+  save("entity", {
+    name: "Comment",
+    fields: [{ name: "task_id", type: "number" }, { name: "body", type: "string" }],
+  });
 
-  run("add-relation", "User", "Project", "owner", "1");
-  run("add-relation", "Project", "Task");
+  save("relation", { from: "User", to: "Project", label: "owner", cardinality: "1" });
+  save("relation", { from: "Project", to: "Task" });
 
-  run("add-method", "Project", "create", '[{"name":"title","type":"string"}]', "Project");
-  run("add-method", "Task", "assign", '[{"name":"user_id","type":"number"}]', "boolean", "--permission", "project_id.owner_id");
-  run("add-method", "User", "register", '[{"name":"email","type":"string"}]', "User", "--no-auth");
+  save("permission", { method: "Project.create", path: "owner_id", description: "must be owner" });
 
-  run("add-publish", "Project.create", "title");
-  run("add-publish", "Project.create", "owner_id");
+  save("document", {
+    name: "ProjectDoc",
+    entity: "Project",
+    expansions: [
+      { name: "tasks", entity: "Task", foreign_key: "project_id" },
+      { name: "owner", entity: "User", foreign_key: "owner_id", belongs_to: true },
+    ],
+  });
+  // Nested expansion (comments under tasks) — needs separate save since parent must exist first
+  save("expansion", { document: "ProjectDoc", name: "comments", entity: "Comment", foreign_key: "task_id", parent: "tasks" });
 
-  run("add-notification", "Task.assign", "task-assigned", "assignee_id", '{"task_id":"number"}');
+  save("document", { name: "TaskList", entity: "Task", collection: true, public: true, description: "All tasks" });
+  save("document", { name: "UserProfile", entity: "User", fetch: "cursor" });
 
-  run("add-permission", "Project.create", "owner_id", "must be owner");
+  save("story", {
+    actor: "manager",
+    action: "create projects",
+    description: "to organise work",
+    links: [
+      { type: "document", name: "ProjectDoc" },
+      { type: "entity", name: "Project" },
+      { type: "method", name: "Project.create" },
+    ],
+  });
+  save("story", { actor: "developer", action: "view tasks" });
 
-  run("add-document", "ProjectDoc", "Project");
-  run("add-document", "TaskList", "Task", "--collection", "--public", "--description", "All tasks");
-  run("add-document", "UserProfile", "User", "--cursor");
+  save("metadata", { key: "app-name", value: "Test App" });
+  save("metadata", { key: "version", value: "1.0" });
+  save("metadata", { key: "theme", value: "Dark modern" });
 
-  run("add-expansion", "ProjectDoc", "tasks", "Task", "project_id");
-  run("add-expansion", "ProjectDoc", "owner", "User", "owner_id", "--belongs-to");
-  run("add-expansion", "ProjectDoc", "comments", "Comment", "task_id", "--parent", "tasks");
+  save("checklist", {
+    name: "auth-flow",
+    description: "Verify authentication",
+    checks: [
+      { actor: "manager", method: "Project.create", description: "manager can create" },
+      { actor: "guest", method: "Project.create", action: "denied", description: "guest cannot" },
+    ],
+  });
 
-  run("add-story", "manager", "create projects", "to organise work");
-  run("add-story", "developer", "view tasks");
-
-  run("link-story", "1", "document", "ProjectDoc");
-  run("link-story", "1", "entity", "Project");
-  run("link-story", "1", "method", "Project.create");
-
-  run("set-meta", "app-name", "Test App");
-  run("set-meta", "version", "1.0");
-  run("set-theme", "Dark modern");
-
-  run("add-checklist", "auth-flow", "Verify authentication");
-  run("add-check", "auth-flow", "manager", "Project.create", "manager can create");
-  run("add-check", "auth-flow", "guest", "Project.create", "guest cannot", "--denied");
-  // Confirm first check
-  run("confirm-check", "1", "--api");
+  // Confirm first check — need direct DB access since save doesn't handle confirm
+  const db = openDb();
+  db.run("UPDATE checks SET confirmed = confirmed | 1 WHERE id = 1");
+  db.close();
 });
 
 afterAll(() => {

@@ -12,7 +12,6 @@ import {
   getChecklistDetail,
   getMetadata,
 } from "./etl";
-import { REFERENCE } from "./reference";
 import homepage from "./index.html";
 
 let cachedDiagrams: Record<string, string> | null = null;
@@ -68,7 +67,11 @@ const server = Bun.serve({
       catch { return Response.json({}); }
     },
 
-    "/api/reference": () => Response.json(REFERENCE),
+    "/api/reference": async () => {
+      const file = Bun.file(import.meta.dir + "/../.claude/skills/model-app/reference.md");
+      if (!(await file.exists())) return new Response("Not found", { status: 404 });
+      return new Response(file, { headers: { "Content-Type": "text/markdown; charset=utf-8" } });
+    },
 
     // --- Detail endpoints ---
 

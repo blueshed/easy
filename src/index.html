@@ -58,9 +58,7 @@
             </div>
 
             <div id="reference" class="section">
-                <h2 class="section-title">CLI Reference</h2>
-                <p class="ref-intro">All commands use the prefix <code class="ref-code">bun model</code> (or <code class="ref-code">docker compose exec easy bun model</code> from outside the container).</p>
-                <div id="reference-content"></div>
+                <div id="reference-content" class="md-content"></div>
             </div>
 
             <!-- Document, entity, and checklist pages are created dynamically -->
@@ -700,37 +698,86 @@
                 el.innerHTML = html;
             }
 
-            // Load reference
-            fetch("/api/reference")
-                .then(function (r) { return r.json(); })
-                .then(function (groups) {
-                    var el = document.getElementById("reference-content");
-                    var html = "";
-                    groups.forEach(function (g) {
-                        html += '<div class="ref-group">';
-                        html += '<h3 class="ref-group-title">' + esc(g.title) + '</h3>';
-                        if (g.description) {
-                            html += '<p class="ref-group-desc">' + esc(g.description) + '</p>';
+            // Load reference markdown
+            function renderMarkdown(md) {
+                var html = "";
+                var lines = md.split("\n");
+                var i = 0;
+                var inCode = false;
+                var codeLines = [];
+                var inList = false;
+                while (i < lines.length) {
+                    var line = lines[i];
+                    if (inCode) {
+                        if (line.match(/^```/)) {
+                            html += '<pre class="md-pre"><code>' + esc(codeLines.join("\n")) + '</code></pre>';
+                            codeLines = [];
+                            inCode = false;
+                        } else {
+                            codeLines.push(line);
                         }
-                        g.commands.forEach(function (c) {
-                            html += '<div class="ref-cmd">';
-                            html += '<div class="ref-syntax">bun model ' + esc(c.syntax) + '</div>';
-                            html += '<div class="ref-desc">' + esc(c.description) + '</div>';
-                            if (c.flags && c.flags.length > 0) {
-                                html += '<div class="ref-flags">';
-                                c.flags.forEach(function (f) {
-                                    html += '<span class="ref-flag">' + esc(f) + '</span>';
-                                });
-                                html += '</div>';
-                            }
-                            if (c.example) {
-                                html += '<div class="ref-example">bun model ' + esc(c.example) + '</div>';
-                            }
-                            html += '</div>';
-                        });
-                        html += '</div>';
-                    });
-                    el.innerHTML = html;
+                        i++;
+                        continue;
+                    }
+                    if (line.match(/^```/)) {
+                        if (inList) { html += '</ul>'; inList = false; }
+                        inCode = true;
+                        codeLines = [];
+                        i++;
+                        continue;
+                    }
+                    if (line.match(/^\s*$/)) {
+                        if (inList) { html += '</ul>'; inList = false; }
+                        i++;
+                        continue;
+                    }
+                    var m;
+                    if ((m = line.match(/^(#{1,4})\s+(.*)/))) {
+                        if (inList) { html += '</ul>'; inList = false; }
+                        var level = m[1].length;
+                        html += '<h' + level + ' class="md-h">' + inline(m[2]) + '</h' + level + '>';
+                        i++;
+                        continue;
+                    }
+                    if ((m = line.match(/^[-*]\s+(.*)/))) {
+                        if (!inList) { html += '<ul class="md-ul">'; inList = true; }
+                        html += '<li>' + inline(m[1]) + '</li>';
+                        i++;
+                        continue;
+                    }
+                    if (inList) { html += '</ul>'; inList = false; }
+                    // table
+                    if (line.indexOf("|") !== -1 && i + 1 < lines.length && lines[i + 1].match(/^\|[-\s|]+\|$/)) {
+                        var headerCells = line.split("|").filter(function(c) { return c.trim() !== ""; });
+                        html += '<table class="md-table"><thead><tr>';
+                        headerCells.forEach(function(c) { html += '<th>' + inline(c.trim()) + '</th>'; });
+                        html += '</tr></thead><tbody>';
+                        i += 2; // skip header + separator
+                        while (i < lines.length && lines[i].indexOf("|") !== -1) {
+                            var cells = lines[i].split("|").filter(function(c) { return c.trim() !== ""; });
+                            html += '<tr>';
+                            cells.forEach(function(c) { html += '<td>' + inline(c.trim()) + '</td>'; });
+                            html += '</tr>';
+                            i++;
+                        }
+                        html += '</tbody></table>';
+                        continue;
+                    }
+                    html += '<p class="md-p">' + inline(line) + '</p>';
+                    i++;
+                }
+                if (inList) html += '</ul>';
+                return html;
+            }
+            function inline(text) {
+                return esc(text)
+                    .replace(/`([^`]+)`/g, '<code class="md-code">$1</code>')
+                    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            }
+            fetch("/api/reference")
+                .then(function (r) { return r.text(); })
+                .then(function (md) {
+                    document.getElementById("reference-content").innerHTML = renderMarkdown(md);
                 });
 
             function navigate() {

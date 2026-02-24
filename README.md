@@ -9,12 +9,9 @@ Domain modeling tool for applications built on the [simple](https://github.com/b
 
 ```bash
 docker compose up -d
-docker compose exec easy bun model add-entity Room
-docker compose exec easy bun model add-field Room id number
-docker compose exec easy bun model add-field Room name string
-docker compose exec easy bun model add-method Room rename '[{"name":"name","type":"string"}]' boolean
-docker compose exec easy bun model add-publish Room.rename name
-docker compose exec easy bun model export-spec
+docker compose exec easy bun model save entity '{"name":"Room","fields":[{"name":"id","type":"number"},{"name":"name","type":"string"}]}'
+docker compose exec easy bun model save method '{"entity":"Room","name":"rename","args":[{"name":"name","type":"string"}],"publishes":["name"]}'
+docker compose exec easy bun model export
 ```
 
 Or open http://localhost:8080 to browse the model site.
@@ -26,8 +23,8 @@ bun create blueshed/simple my-app
 cd my-app
 # Add easy services to your compose.yml (see below), then:
 docker compose up -d
-docker compose exec easy bun model add-entity User ...
-docker compose exec easy bun model export-spec > spec.md
+docker compose exec easy bun model save entity '{"name":"User","fields":[{"name":"id","type":"number"},{"name":"name","type":"string"}]}'
+docker compose exec easy bun model export > spec.md
 # Now use /implement in Claude to build from the spec
 ```
 
@@ -54,75 +51,55 @@ Add to your project's `compose.yml`:
 All commands: `docker compose exec easy bun model <command> [args]`
 
 ```
-Entities:
-  add-entity <Name>
-  add-field <Entity> <field> [type]
-  add-relation <From> <To> [label] [cardinality]
-  remove-entity <Name>
-  remove-field <Entity> <field>
-  remove-relation <From> <To> [label]
+Mutations:
+  save <schema> <json>               Upsert by natural key (coalescing)
+  delete <schema> <json>             Remove by natural key
 
-Stories:
-  add-story <actor> <action> [description]
-  remove-story <id>
-  link-story <story_id> <target_type> <target_name>
-  unlink-story <story_id> <target_type> <target_name>
-
-Documents:
-  add-document <Name> <Entity> [--collection] [--public] [--cursor] [--stream] [--description <text>]
-  remove-document <Name>
-
-Expansions:
-  add-expansion <Document> <name> <Entity> <foreign_key> [--belongs-to] [--shallow] [--parent <name>]
-  remove-expansion <Document> <name>
-
-Methods:
-  add-method <Entity> <name> [args_json] [return_type] [--no-auth] [--permission <path>]
-  remove-method <Entity> <name>
-
-Publish / Notify:
-  add-publish <Entity.method> <property>
-  remove-publish <Entity.method> <property>
-  add-notification <Entity.method> <channel> <recipients> [payload_json]
-  remove-notification <Entity.method> <channel>
-
-Permissions:
-  add-permission <Entity.method> <path> [description]
-  remove-permission <id>
-
-Checklists:
-  add-checklist <name> [description]
-  remove-checklist <name>
-  add-check <checklist> <actor> <Entity.method> [description] [--denied] [--after <check_id>]
-  remove-check <check_id>
-  add-check-dep <check_id> <depends_on_id>
-  remove-check-dep <check_id> <depends_on_id>
-  confirm-check <check_id> --api|--ux
-  unconfirm-check <check_id> --api|--ux
-  list-checks [checklist]
-
-Metadata:
-  set-meta <key> <value>
-  get-meta [key]
-  clear-meta <key>
-  set-theme <description>
-  get-theme
-  clear-theme
-
-Listing:
-  list
-  list-stories
-  list-documents
-
-Export:
-  export-spec
+Queries:
+  list [schema]                      List all, or items of a schema type
+  get <schema> <key>                 Get one item as JSON
+  export                             Markdown spec to stdout
 
 Maintenance:
-  doctor
-  doctor --fix
+  doctor [--fix]                     Report/repair orphaned references
 
 Batch:
-  batch                    (reads JSONL from stdin)
+  batch                              JSONL from stdin: ["save","entity",{...}]
+
+Schemas: entity, field, relation, story, document, expansion, method,
+         publish, notification, permission, checklist, check, metadata
+```
+
+### Save examples
+
+```bash
+# Entity with fields inline
+bun model save entity '{"name":"Room","fields":[{"name":"id","type":"number"},{"name":"name","type":"string"}]}'
+
+# Relation
+bun model save relation '{"from":"Room","to":"Message","label":"messages","cardinality":"*"}'
+
+# Document with expansions
+bun model save document '{"name":"RoomDoc","entity":"Room","expansions":[{"name":"messages","entity":"Message","foreign_key":"room_id"}]}'
+
+# Method with publishes shorthand
+bun model save method '{"entity":"Room","name":"rename","args":[{"name":"name","type":"string"}],"publishes":["name"]}'
+
+# Story with links
+bun model save story '{"actor":"member","action":"send a message","links":[{"type":"entity","name":"Room"}]}'
+
+# Checklist with checks
+bun model save checklist '{"name":"Access","checks":[{"actor":"member","method":"Room.rename"},{"actor":"outsider","method":"Room.rename","denied":true}]}'
+
+# Metadata
+bun model save metadata '{"key":"theme","value":"Dark navy palette"}'
+```
+
+### Delete
+
+```bash
+bun model delete field '{"entity":"Room","name":"capacity"}'
+bun model delete entity '{"name":"Room"}'
 ```
 
 ## Model site
@@ -134,11 +111,15 @@ The site at http://localhost:8080 shows:
 - **Document** pages with expansion trees, changed-by entities, methods, and linked stories
 - **Entity** pages with fields, change targets, methods (with permissions and publishes), and related documents
 - **Checklists** with CAN/DENIED checks and API/UX confirmation tracking
-- **Reference** — full CLI command reference with syntax, descriptions, flags, and examples
+- **Reference** — full CLI command reference with syntax, descriptions, and examples
 
 ## How it works
 
-The model is stored in `model.db` (SQLite with foreign keys enabled, mounted as a volume). The CLI writes to it, the site reads from it. `export-spec` produces a standalone Markdown spec suitable for `/implement` in a Simple project.
+The model is stored in `model.db` (SQLite with foreign keys enabled, mounted as a volume). The CLI writes to it, the site reads from it. `export` produces a standalone Markdown spec suitable for `/implement` in a Simple project.
+
+### Coalescing upsert
+
+Save merges by natural key. Scalar fields are coalesced — only provided fields are updated. Array children are merged by their own natural keys — existing children not in the array are left alone.
 
 ### Change targets
 
@@ -155,11 +136,10 @@ Pipe JSONL to load a model quickly:
 
 ```bash
 cat <<'EOF' | docker compose exec -T easy bun model batch
-["add-entity","Room"]
-["add-field","Room","id","number"]
-["add-field","Room","name","string"]
-["add-method","Room","rename","[{\"name\":\"name\",\"type\":\"string\"}]","boolean"]
-["add-publish","Room.rename","name"]
+["save","entity",{"name":"Room"}]
+["save","field",{"entity":"Room","name":"id","type":"number"}]
+["save","field",{"entity":"Room","name":"name","type":"string"}]
+["save","method",{"entity":"Room","name":"rename","args":[{"name":"name","type":"string"}],"publishes":["name"]}]
 EOF
 ```
 
@@ -176,7 +156,10 @@ docker compose exec easy bun model doctor --fix
 
 | File | Purpose |
 |------|---------|
-| `src/cli.ts` | CLI commands and `export-spec` |
+| `src/cli.ts` | CLI dispatcher — 7 commands |
+| `src/schemas.ts` | Schema registry — declarative definitions |
+| `src/save.ts` | Generic save/delete engine |
+| `src/query.ts` | List, get, export, doctor |
 | `src/db.ts` | SQLite schema, foreign keys, and `openDb()` helper |
 | `src/etl.ts` | Site API queries and PlantUML diagram generation |
 | `src/site.ts` | Bun HTTP server on port 8080 with parameterized routes |

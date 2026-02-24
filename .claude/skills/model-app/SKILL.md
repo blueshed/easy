@@ -11,7 +11,7 @@ Decompose application requirements into [Simple](https://github.com/blueshed/sim
 > `bun model` resolves to `docker compose exec easy bun model` via the `model` script in package.json — it runs inside the Easy container.
 
 **Important**:
-- Most CLI args are **positional**, not flags. Use the exact syntax from `reference.md`. Do NOT invent flags like `--actor` — the CLI will reject them.
+- All mutations use **JSON objects** — `bun model save <schema> '<json>'`. Use the exact syntax from `reference.md`.
 - **Run commands individually**, not in batch. Each command should be a separate `bun model` call so you can see errors immediately and fix them before proceeding. Only use `bun model batch` for large bulk imports where you've already verified the syntax.
 
 ## Before you start
@@ -57,7 +57,7 @@ Created with `bun create blueshed/simple <app-name>`.
 ## How Modeling Connects to Building
 
 ```
-bun model ... → bun model export-spec > spec.md → /implement
+bun model ... → bun model export > spec.md → /implement
 ```
 
 1. You model with the Easy CLI (this skill)
@@ -75,34 +75,29 @@ Always work top-down in this order:
 5. **Expansions** — which related entities load with each document?
 6. **Methods** — what mutations can users perform? Each becomes a postgres function
 7. **Publish** — which fields does each method change? Determines the `pg_notify` payload
-8. **Story links** — connect each story to its artifacts
+8. **Story links** — connect each story to its artifacts (inline with story save)
 9. **Checklists** — CAN/DENIED checks that verify permission enforcement (see guidance below)
-10. **Export** — `bun model export-spec` to generate the spec
+10. **Export** — `bun model export` to generate the spec
 
 ## Metadata
 
 The model database has a key-value metadata store for application-level information. Use it to capture anything that describes the app being built — theme, project name, target audience, etc.
 
 ```bash
-bun model set-meta theme "60s flower power — warm oranges, earthy browns, groovy rounded shapes"
-bun model set-meta name "My Chat App"
-bun model get-meta              # list all
-bun model clear-meta name       # remove a key
+bun model save metadata '{"key":"theme","value":"60s flower power — warm oranges, earthy browns, groovy rounded shapes"}'
+bun model save metadata '{"key":"name","value":"My Chat App"}'
+bun model list metadata              # list all
+bun model delete metadata '{"key":"name"}'   # remove a key
 ```
 
-The `set-theme` / `get-theme` / `clear-theme` shortcuts work for the `theme` key specifically.
-
-All metadata is included in `export-spec` output as a `## Metadata` section. The `/implement` skill reads the `theme` value (if present) to guide CSS generation. The Easy website displays all metadata on the Stories page.
+All metadata is included in `export` output as a `## Metadata` section. The `/implement` skill reads the `theme` value (if present) to guide CSS generation. The Easy website displays all metadata on the Stories page.
 
 ## Account Entity
 
 Simple's auth system provides a `user` table (id, name, email). In the model, represent this as an **Account** entity — you must add it before referencing it in relations or expansions:
 
 ```bash
-bun model add-entity Account
-bun model add-field Account id number
-bun model add-field Account name string
-bun model add-field Account email string
+bun model save entity '{"name":"Account","fields":[{"name":"id","type":"number"},{"name":"name","type":"string"},{"name":"email","type":"string"}]}'
 ```
 
 The `/implement` skill maps Account to the existing `user` table — it does not create a separate table.
@@ -180,7 +175,7 @@ Reads: "Take the entity's `owner_id`, look up `acts_for` rows where `org_id` mat
 ### CLI
 
 ```bash
-bun model add-permission Organisation.createVenue "@owner_id->acts_for[org_id=$]{active}.user_id" "User must be active member of the organisation"
+bun model save permission '{"method":"Organisation.createVenue","path":"@owner_id->acts_for[org_id=$]{active}.user_id","description":"User must be active member of the organisation"}'
 ```
 
 ## Checklists — Avoiding Overlap
@@ -190,7 +185,7 @@ Methods already capture permissions and publish as the **single source of truth*
 **DO use checklists for:**
 - **Denied paths** — proving someone *can't* do something (e.g. "user B cannot edit user A's post")
 - **Document-level behaviour** — what appears/disappears from collection queries after an action (e.g. "published post appears in PostFeed")
-- **Sequenced flows** — ordered multi-step scenarios using `--after` dependencies
+- **Sequenced flows** — ordered multi-step scenarios using dependencies
 - **Cross-cutting concerns** — behaviour that spans multiple methods or documents
 
 **AVOID in checklists:**
