@@ -109,9 +109,18 @@ bun model save checklist '{"name":"Room Access","checks":[{"actor":"member","met
 ```
 
 ### check
-Natural key: `checklist` + `actor` + `method`. Use `denied: true` or `action: "denied"` for negative tests. Children: `depends_on` (by natural key: `checklist` + `actor` + `method`).
+Natural key: `checklist` + `actor` + `method`. Use `denied: true` or `action: "denied"` for negative tests. The `confirmed` field is a bitmask tracking test status: `1` = API tested (A), `2` = UX tested (U), `3` = both. Children: `depends_on` (by natural key: `checklist` + `actor` + `method`).
 ```bash
 bun model save check '{"checklist":"Room Access","actor":"outsider","method":"Room.rename","denied":true}'
+
+# Mark API tested
+bun model save check '{"checklist":"Room Access","actor":"member","method":"Room.rename","confirmed":1}'
+
+# Mark UX tested
+bun model save check '{"checklist":"Room Access","actor":"member","method":"Room.rename","confirmed":2}'
+
+# Mark both API + UX tested
+bun model save check '{"checklist":"Room Access","actor":"member","method":"Room.rename","confirmed":3}'
 
 # Add dependency by natural key (outsider check runs after member check)
 bun model save check '{"checklist":"Room Access","actor":"outsider","method":"Room.rename","depends_on":[{"checklist":"Room Access","actor":"member","method":"Room.rename"}]}'
@@ -335,6 +344,32 @@ bun model save check '{"checklist":"Venue Setup","actor":"sponsor","method":"Ven
 # Add dependency — sponsor check runs after venue_owner check
 bun model save check '{"checklist":"Venue Setup","actor":"sponsor","method":"Venue.addArea","depends_on":[{"checklist":"Venue Setup","actor":"venue_owner","method":"Venue.addArea"}]}'
 ```
+
+### Tracking test status
+
+Each check has a `confirmed` bitmask that tracks whether it has been verified:
+
+| Value | Meaning |
+|-------|---------|
+| `0`   | Not tested (default) |
+| `1`   | **A** — API tested |
+| `2`   | **U** — UX tested |
+| `3`   | **A + U** — Both tested (fully done) |
+
+Update the status by saving the check with `confirmed`:
+
+```bash
+# Mark API tested
+bun model save check '{"checklist":"Venue Setup","actor":"venue_owner","method":"Venue.addArea","confirmed":1}'
+
+# Mark both API + UX tested
+bun model save check '{"checklist":"Venue Setup","actor":"venue_owner","method":"Venue.addArea","confirmed":3}'
+
+# Reset to untested
+bun model save check '{"checklist":"Venue Setup","actor":"venue_owner","method":"Venue.addArea","confirmed":0}'
+```
+
+The site displays A and U badges on each check, and shows progress counts per checklist.
 
 ## Change Targets
 
