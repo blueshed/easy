@@ -65,6 +65,7 @@ Maintenance:
 
 Batch:
   batch                              JSONL from stdin: ["save","entity",{...}]
+  import <file.yml|json>             Import YAML or JSON file containing model definitions
 
 Schemas: entity, field, relation, story, document, expansion, method,
          publish, notification, permission, checklist, check, metadata
@@ -112,6 +113,7 @@ The site at http://localhost:8080 shows:
 - **Entity** pages with fields, change targets, methods (with permissions and publishes), and related documents
 - **Checklists** with CAN/DENIED checks and API/UX confirmation tracking
 - **Reference** — full CLI command reference with syntax, descriptions, and examples
+- **Live reload** — the site updates automatically via SSE when the model changes
 
 ## How it works
 
@@ -143,6 +145,27 @@ cat <<'EOF' | docker compose exec -T easy bun model batch
 EOF
 ```
 
+### Import from file
+
+Import a full model from a YAML or JSON file:
+
+```bash
+docker compose exec easy bun model import model.yml
+```
+
+The file maps schema names (singular or plural) to arrays of objects. Plural keys like `entities` are automatically resolved to their singular schema name. All items are saved in a single transaction.
+
+```yaml
+entities:
+  - name: Room
+    fields:
+      - { name: id, type: number }
+      - { name: name, type: string }
+
+relations:
+  - { from: Room, to: Message, label: messages, cardinality: "*" }
+```
+
 ### Database maintenance
 
 The `doctor` command reports orphaned references — story links, checks, or check dependencies pointing to deleted entities, methods, or documents. Use `--fix` to remove them:
@@ -156,7 +179,7 @@ docker compose exec easy bun model doctor --fix
 
 | File | Purpose |
 |------|---------|
-| `src/cli.ts` | CLI dispatcher — 7 commands |
+| `src/cli.ts` | CLI dispatcher — 8 commands |
 | `src/schemas.ts` | Schema registry — declarative definitions |
 | `src/save.ts` | Generic save/delete engine |
 | `src/query.ts` | List, get, export, doctor |

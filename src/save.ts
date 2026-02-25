@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { SCHEMAS, resolveFk, type SchemaDefinition, type ChildDef } from "./schemas";
+import { validate } from "./validate";
 
 // --- Target resolution for story links (polymorphic) ---
 
@@ -43,6 +44,8 @@ function resolveTarget(db: Database, type: string, name: string): number {
 export function save(db: Database, schemaName: string, obj: Record<string, unknown>): number {
   const schema = SCHEMAS[schemaName];
   if (!schema) throw new Error(`Unknown schema '${schemaName}'`);
+
+  validate(schemaName, obj);
 
   return db.transaction(() => doSave(db, schema, schemaName, obj))();
 }

@@ -70,6 +70,14 @@
         <script>
             const t = Date.now();
 
+            // Real-time updates via SSE
+            const evtSource = new EventSource("/api/events");
+            evtSource.onmessage = function (event) {
+                if (event.data === "reload") {
+                    location.reload();
+                }
+            };
+
             // Load SVG inline
             function loadSvgInline(container, url) {
                 fetch(url + "?t=" + t)

@@ -19,6 +19,7 @@ Maintenance:
 
 Batch:
   bun model batch                      JSONL from stdin: ["save","entity",{...}]
+  bun model import <file.yml|json>     Import YAML or JSON file containing model definitions
 ```
 
 ## Save — Schema Reference
@@ -276,6 +277,40 @@ Batch: 5 ok, 0 failed, 5 total
 ```
 
 Errors on individual lines are caught and reported without stopping the batch. **Prefer individual commands** over batch — run each `bun model` call separately so errors are caught immediately. Only use batch for large bulk imports where you've already verified the syntax.
+
+### Import from File
+
+Import a YAML or JSON file containing model definitions. The file should be a mapping of schema names (singular or plural) to arrays of objects.
+
+```bash
+bun model import model.yml
+bun model import model.json
+```
+
+Example YAML file:
+```yaml
+entities:
+  - name: Room
+    fields:
+      - { name: id, type: number }
+      - { name: name, type: string }
+  - name: Message
+    fields:
+      - { name: id, type: number }
+      - { name: text, type: string }
+      - { name: room_id, type: number }
+
+relations:
+  - { from: Room, to: Message, label: messages, cardinality: "*" }
+
+documents:
+  - name: RoomDoc
+    entity: Room
+    expansions:
+      - { name: messages, entity: Message, foreign_key: room_id }
+```
+
+Plural keys (e.g. `entities`, `stories`) are automatically mapped to singular schema names. All items are saved in a single transaction — if any item fails, the entire import is rolled back.
 
 ## Checklists
 

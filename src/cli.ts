@@ -2,6 +2,12 @@ import { openDb } from "./db";
 import { SCHEMAS } from "./schemas";
 import { save, del } from "./save";
 import { list, get, exportSpec, doctor } from "./query";
+import { parse as parseYaml } from "yaml";
+import { readFileSync } from "fs";
+
+function triggerReload() {
+  fetch("http://localhost:8080/api/internal/reload", { method: "POST" }).catch(() => { });
+}
 
 const db = openDb();
 const [cmd, ...rawArgs] = process.argv.slice(2);
@@ -37,6 +43,7 @@ function dispatch(command: string, args: string[]): void {
       const obj = JSON.parse(jsonStr);
       const id = save(db, schemaName, obj);
       console.log(`Saved ${schemaName} (id: ${id})`);
+      triggerReload();
       break;
     }
 
@@ -53,11 +60,57 @@ function dispatch(command: string, args: string[]): void {
       const obj = JSON.parse(jsonStr);
       del(db, schemaName, obj);
       console.log(`Deleted ${schemaName}`);
+      triggerReload();
       break;
     }
 
     case "batch": {
       // handled at entry point (needs async stdin)
+      break;
+    }
+
+    case "import": {
+      const file = args[0];
+      if (!file) {
+        console.error("Usage: bun model import <file.yml|json>");
+        throw new Error("fail");
+      }
+      const ext = file.split(".").pop();
+      const content = readFileSync(file, "utf-8");
+      let data: Record<string, any>;
+      if (ext === "yml" || ext === "yaml") {
+        data = parseYaml(content);
+      } else {
+        data = JSON.parse(content);
+      }
+
+      let imported = 0;
+      db.transaction(() => {
+        for (let [schemaName, items] of Object.entries(data)) {
+          // Basic plural-to-singular mapping support
+          if (!SCHEMAS[schemaName]) {
+            if (schemaName.endsWith("ies") && SCHEMAS[schemaName.slice(0, -3) + "y"]) {
+              schemaName = schemaName.slice(0, -3) + "y";
+            } else if (schemaName.endsWith("s") && SCHEMAS[schemaName.slice(0, -1)]) {
+              schemaName = schemaName.slice(0, -1);
+            }
+          }
+          if (!SCHEMAS[schemaName] || schemaName.startsWith("_")) {
+            console.error(`Unknown schema '${schemaName}' in import file.`);
+            throw new Error("fail");
+          }
+          if (!Array.isArray(items)) {
+            console.error(`Expected array for schema '${schemaName}'.`);
+            throw new Error("fail");
+          }
+          for (const item of items) {
+            save(db, schemaName, item);
+            imported++;
+          }
+        }
+      })();
+      console.log(`Imported ${imported} items from ${file}`);
+      triggerReload();
       break;
     }
 
@@ -114,6 +167,7 @@ function usage() {
 
   Batch:
     bun model batch                      JSONL from stdin: ["save","entity",{...}]
+    bun model import <file.yml|json>     Import YAML or JSON file containing model definitions
 
   Schemas: ${schemas}`);
 }
@@ -142,6 +196,7 @@ if (cmd === "batch") {
     }
   }
   console.log(`\nBatch: ${ok} ok, ${fail} failed, ${lines.length} total`);
+  if (ok > 0) triggerReload();
 } else if (!cmd) {
   usage();
 } else {

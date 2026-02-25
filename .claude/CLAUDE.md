@@ -6,7 +6,7 @@ Domain modeling tool for applications built on the **simple** template pattern. 
 
 | File | Purpose |
 |------|---------|
-| `src/cli.ts` | CLI dispatcher — 7 commands: `save`, `delete`, `batch`, `list`, `get`, `export`, `doctor` |
+| `src/cli.ts` | CLI dispatcher — 8 commands: `save`, `delete`, `batch`, `import`, `list`, `get`, `export`, `doctor` |
 | `src/schemas.ts` | Schema registry — declarative definitions mapping JSON fields to SQLite tables |
 | `src/save.ts` | Generic save/delete engine — upsert by natural key with coalescing and nested children |
 | `src/query.ts` | Read operations — list, get, export, doctor |
@@ -48,6 +48,7 @@ bun model doctor [--fix]         # report/repair orphaned references
 
 # Batch
 bun model batch                  # JSONL from stdin: ["save","entity",{...}]
+bun model import <file.yml|json> # Import YAML or JSON file containing model definitions
 ```
 
 Schemas: entity, field, relation, story, document, expansion, method, publish, notification, permission, checklist, check, metadata.

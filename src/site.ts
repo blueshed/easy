@@ -17,6 +17,19 @@ import homepage from "./index.html";
 let cachedDiagrams: Record<string, string> | null = null;
 let cachedMtime: number = 0;
 
+// SSE support
+const clients = new Set<ReadableStreamDefaultController<any>>();
+function broadcastReload() {
+  cachedDiagrams = null; // invalidate cache
+  for (const client of clients) {
+    try {
+      client.enqueue("data: reload\n\n");
+    } catch {
+      clients.delete(client);
+    }
+  }
+}
+
 async function getDiagrams(): Promise<Record<string, string>> {
   const file = Bun.file(getDbPath());
   const mtime = (await file.exists()) ? (await file.stat()).mtimeMs : 0;
@@ -35,8 +48,20 @@ function svgResponse(svg: string) {
   return new Response(svg, { headers: SVG_HEADERS });
 }
 
+// SSE keepalive — send a comment every 30s so connections don't idle out
+setInterval(() => {
+  for (const client of clients) {
+    try {
+      client.enqueue(": keepalive\n\n");
+    } catch {
+      clients.delete(client);
+    }
+  }
+}, 5_000);
+
 const server = Bun.serve({
   port: 8080,
+  idleTimeout: 255,
   routes: {
     "/": homepage,
 
@@ -71,6 +96,42 @@ const server = Bun.serve({
       const file = Bun.file(import.meta.dir + "/../.claude/skills/model-app/reference.md");
       if (!(await file.exists())) return new Response("Not found", { status: 404 });
       return new Response(file, { headers: { "Content-Type": "text/markdown; charset=utf-8" } });
+    },
+
+    // --- Internal CLI webhook ---
+
+    "/api/internal/reload": {
+      async POST(req: Request) {
+        broadcastReload();
+        return new Response("ok");
+      },
+    },
+
+    // --- SSE Endpoint ---
+
+    "/api/events": (req) => {
+      let ctrl: ReadableStreamDefaultController<any>;
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            ctrl = controller;
+            clients.add(ctrl);
+            req.signal.addEventListener("abort", () => {
+              clients.delete(ctrl);
+            });
+          },
+          cancel() {
+            clients.delete(ctrl);
+          },
+        }),
+        {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        }
+      );
     },
 
     // --- Detail endpoints ---
