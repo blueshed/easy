@@ -98,6 +98,17 @@ const server = Bun.serve({
       return new Response(file, { headers: { "Content-Type": "text/markdown; charset=utf-8" } });
     },
 
+    "/api/ai": async () => {
+      const skillFile = Bun.file(import.meta.dir + "/../.claude/skills/model-app/SKILL.md");
+      const refFile = Bun.file(import.meta.dir + "/../.claude/skills/model-app/reference.md");
+      if (!(await skillFile.exists()) || !(await refFile.exists())) return new Response("Not found", { status: 404 });
+      let skill = await skillFile.text();
+      const ref = await refFile.text();
+      // Strip YAML frontmatter
+      skill = skill.replace(/^---\n[\s\S]*?\n---\n*/, "");
+      return new Response(skill + "\n---\n\n" + ref, { headers: { "Content-Type": "text/markdown; charset=utf-8" } });
+    },
+
     // --- Internal CLI webhook ---
 
     "/api/internal/reload": {
