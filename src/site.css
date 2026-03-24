@@ -103,9 +103,6 @@ body {
 }
 
 .section {
-    display: none;
-}
-.section.active {
     display: block;
 }
 
@@ -315,12 +312,9 @@ a.change-tag:hover {
 
 /* Full-viewport sections (entities diagram) */
 .section-full {
-    display: none;
+    display: flex;
     flex-direction: column;
     height: calc(100vh - 5rem);
-}
-.section-full.active {
-    display: flex;
 }
 .section-header {
     display: flex;

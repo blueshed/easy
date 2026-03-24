@@ -83,7 +83,7 @@ function generateEntityDiagram(db: Database): string {
       .all(e.id) as Method[];
 
     lines.push(
-      `entity "${e.name}" as ${alias(e.name)} [[#entity-${e.name}]] {`,
+      `entity "${e.name}" as ${alias(e.name)} [[#/entity/${e.name}]] {`,
     );
     for (const f of fields) lines.push(`  ${f.name} : ${f.type}`);
     if (methods.length > 0) {
@@ -205,7 +205,7 @@ function generateDocumentDiagram(db: Database): string {
     // Root entity
     const rootAlias = `root_${d.id}`;
     lines.push(
-      `object "${d.entity_name}" as ${rootAlias} [[#entity-${d.entity_name}]]`,
+      `object "${d.entity_name}" as ${rootAlias} [[#/entity/${d.entity_name}]]`,
     );
     lines.push(`${docAlias} --> ${rootAlias} : root`);
     lines.push("");
@@ -230,7 +230,7 @@ function generateDocumentDiagram(db: Database): string {
         expAliases.set(x.id, a);
         const suffix = x.belongs_to ? "" : x.shallow ? " *" : "[]";
         lines.push(
-          `object "${x.entity_name}${suffix}" as ${a} [[#entity-${x.entity_name}]]`,
+          `object "${x.entity_name}${suffix}" as ${a} [[#/entity/${x.entity_name}]]`,
         );
         const rel = x.belongs_to ? "belongs-to" : x.shallow ? "shallow" : "has-many";
         const arrow = x.shallow ? "..>" : "-->";
@@ -304,7 +304,7 @@ function generateSingleDocumentDiagram(db: Database, docName: string): string {
 
   const rootAlias = `root_${d.id}`;
   lines.push(
-    `object "${d.entity_name}" as ${rootAlias} [[#entity-${d.entity_name}]]`,
+    `object "${d.entity_name}" as ${rootAlias} [[#/entity/${d.entity_name}]]`,
   );
   lines.push(`${docAlias} --> ${rootAlias} : root`);
   lines.push("");
@@ -323,7 +323,7 @@ function generateSingleDocumentDiagram(db: Database, docName: string): string {
       const a = `exp_${objCounter}`;
       const suffix = x.belongs_to ? "" : x.shallow ? " *" : "[]";
       lines.push(
-        `object "${x.entity_name}${suffix}" as ${a} [[#entity-${x.entity_name}]]`,
+        `object "${x.entity_name}${suffix}" as ${a} [[#/entity/${x.entity_name}]]`,
       );
       const rel = x.belongs_to ? "belongs-to" : x.shallow ? "shallow" : "has-many";
       const arrow = x.shallow ? "..>" : "-->";
@@ -358,7 +358,7 @@ function generateSingleEntityDiagram(db: Database, entityName: string): string {
 
   // Central entity — full detail
   lines.push(
-    `entity "${entity.name}" as ${alias(entity.name)} [[#entity-${entity.name}]] {`,
+    `entity "${entity.name}" as ${alias(entity.name)} [[#/entity/${entity.name}]] {`,
   );
   for (const f of fields) lines.push(`  ${f.name} : ${f.type}`);
   if (methods.length > 0) {
@@ -389,7 +389,7 @@ function generateSingleEntityDiagram(db: Database, entityName: string): string {
   }
 
   for (const name of relatedNames) {
-    lines.push(`entity "${name}" as ${alias(name)} [[#entity-${name}]]`);
+    lines.push(`entity "${name}" as ${alias(name)} [[#/entity/${name}]]`);
   }
   if (relatedNames.size > 0) lines.push("");
 

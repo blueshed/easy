@@ -12,7 +12,7 @@ import {
   getChecklistDetail,
   getMetadata,
 } from "./etl";
-import homepage from "./index.html";
+import homepage from "./app.html";
 
 let cachedDiagrams: Record<string, string> | null = null;
 let cachedMtime: number = 0;
