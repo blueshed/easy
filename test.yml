@@ -1,0 +1,44 @@
+entities:
+  - name: Room
+  - name: Message
+fields:
+  - entity: Room
+    name: id
+    type: number
+  - entity: Room
+    name: name
+    type: string
+  - entity: Message
+    name: id
+    type: number
+  - entity: Message
+    name: text
+    type: string
+  - entity: Message
+    name: room_id
+    type: number
+relations:
+  - from: Room
+    to: Message
+    label: messages
+    cardinality: '*'
+methods:
+  - entity: Room
+    name: create
+    args: 
+      - name: name
+        type: string
+    return_type: '{id:number}'
+    publishes:
+      - name
+documents:
+  - name: RoomDocs
+    entity: Room
+    collection: false
+    public: true
+    expansions:
+      - name: messages
+        entity: Message
+        foreign_key: room_id
+        belongs_to: false
+        shallow: false
