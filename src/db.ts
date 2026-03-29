@@ -161,13 +161,25 @@ export function openDb(readonly = false): Database {
             value TEXT NOT NULL
           );
         `
+      },
+      {
+        version: 2,
+        name: "add_document_description",
+        up: `
+          ALTER TABLE documents ADD COLUMN description TEXT NOT NULL DEFAULT '';
+        `
       }
     ];
 
     db.transaction(() => {
       for (const m of MIGRATIONS) {
         if (m.version > currentVersion) {
-          db.exec(m.up);
+          try {
+            db.exec(m.up);
+          } catch (e: any) {
+            // Allow "duplicate column" errors from ADD COLUMN on already-migrated schemas
+            if (!e.message?.includes("duplicate column")) throw e;
+          }
           db.run("INSERT INTO migrations (version, name) VALUES (?, ?)", [m.version, m.name]);
         }
       }
