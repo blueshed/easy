@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2
+
+- Update `@blueshed/railroad` to v0.4.0 — replace `text()` with function children, remove deprecated imports
+- Fix parameterized route navigation (docs, entities, checklists) — use `params$` signal from `routes()` instead of independent `route()` calls
+- Fix validation rejecting natural key fields that have defaults (e.g. relation label)
+
 ## 0.5.1
 
 - Add v2 migration for `documents.description` column — prevents errors on databases created before v0.5.0

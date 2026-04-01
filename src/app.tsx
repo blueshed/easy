@@ -1,6 +1,6 @@
 import { signal, computed, effect, batch, Signal } from "@blueshed/railroad";
-import { routes, route } from "@blueshed/railroad";
-import { text, when, list } from "@blueshed/railroad";
+import { routes } from "@blueshed/railroad";
+import { when, list } from "@blueshed/railroad";
 
 // --- Types ---
 
@@ -223,7 +223,7 @@ function ZoomableDiagram({ url }: { url: string }): Node {
         <h2 class="section-title">Entities</h2>
         <div class="zoom-controls">
           <button class="zoom-btn" onclick={() => setZoom(zoom.peek() - 0.25)}>&minus;</button>
-          <span class="zoom-level">{text(() => Math.round(zoom.get() * 100) + "%")}</span>
+          <span class="zoom-level">{() => Math.round(zoom.get() * 100) + "%"}</span>
           <button class="zoom-btn" onclick={() => setZoom(zoom.peek() + 0.25)}>+</button>
           <button class="zoom-btn" onclick={() => setZoom(1)}>F</button>
         </div>
@@ -277,15 +277,15 @@ function StoriesPage(): Node {
               return (
                 <div class="story">
                   <div class="story-text">
-                    <span class="story-id">{text(() => story.get().id + "#")}</span>
+                    <span class="story-id">{() => story.get().id + "#"}</span>
                     {" As a "}
-                    <span class="story-actor">{text(() => story.get().actor)}</span>
+                    <span class="story-actor">{() => story.get().actor}</span>
                     {", I can "}
-                    <span class="story-action">{text(() => story.get().action)}</span>
+                    <span class="story-action">{() => story.get().action}</span>
                   </div>
                   {when(
                     () => !!story.get().description,
-                    () => <div class="story-desc">{text(() => story.get().description)}</div>,
+                    () => <div class="story-desc">{() => story.get().description}</div>,
                   )}
                   {when(
                     () => story.get().links.filter((l) => l.type !== "notification").length > 0,
@@ -353,9 +353,8 @@ function ReferencePage(): Node {
   );
 }
 
-function DocPage(): Node {
-  const params = route<{ name: string }>("/doc/:name");
-  const name = computed(() => decodeURIComponent(params.get()?.name ?? ""));
+function DocPage(_: Record<string, string>, params$: Signal<Record<string, string>>): Node {
+  const name = computed(() => params$.get().name ?? "");
   const detail = computed(() => docDetails.get()[name.get()]);
   const doc = computed(() => documents.get().find((d) => d.name === name.get()));
 
@@ -370,7 +369,7 @@ function DocPage(): Node {
 
   return (
     <div>
-      <h2 class="section-title">{text(() => name.get())}</h2>
+      <h2 class="section-title">{() => name.get()}</h2>
       {when(
         doc,
         () => {
@@ -387,7 +386,7 @@ function DocPage(): Node {
       )}
       {when(
         () => doc.get()?.description,
-        () => <p class="doc-description">{text(() => doc.get()?.description ?? "")}</p>,
+        () => <p class="doc-description">{() => doc.get()?.description ?? ""}</p>,
       )}
       {diagramEl}
       {when(
@@ -448,9 +447,8 @@ function DocPage(): Node {
   );
 }
 
-function EntityPage(): Node {
-  const params = route<{ name: string }>("/entity/:name");
-  const name = computed(() => decodeURIComponent(params.get()?.name ?? ""));
+function EntityPage(_: Record<string, string>, params$: Signal<Record<string, string>>): Node {
+  const name = computed(() => params$.get().name ?? "");
   const detail = computed(() => entityDetails.get()[name.get()]);
 
   const diagramEl = <div class="diagram-inline" /> as HTMLElement;
@@ -464,7 +462,7 @@ function EntityPage(): Node {
 
   return (
     <div>
-      <h2 class="section-title">{text(() => name.get())}</h2>
+      <h2 class="section-title">{() => name.get()}</h2>
       {diagramEl}
       {when(
         () => (detail.get()?.documents?.length ?? 0) > 0,
@@ -523,18 +521,17 @@ function EntityPage(): Node {
   );
 }
 
-function ChecklistPage(): Node {
-  const params = route<{ name: string }>("/checklist/:name");
-  const name = computed(() => decodeURIComponent(params.get()?.name ?? ""));
+function ChecklistPage(_: Record<string, string>, params$: Signal<Record<string, string>>): Node {
+  const name = computed(() => params$.get().name ?? "");
   const cl = computed(() => checklists.get().find((c) => c.name === name.get()));
   const detail = computed(() => checklistDetails.get()[name.get()]);
 
   return (
     <div>
-      <h2 class="section-title">{text(() => name.get())}</h2>
+      <h2 class="section-title">{() => name.get()}</h2>
       {when(
         () => cl.get()?.description,
-        () => <p class="checklist-desc">{text(() => cl.get()?.description ?? "")}</p>,
+        () => <p class="checklist-desc">{() => cl.get()?.description ?? ""}</p>,
       )}
       {when(
         cl,
@@ -629,7 +626,7 @@ function Sidebar(): Node {
             href={computed(() => "#" + path.get())}
             class={computed(() => "nav-link" + (currentHash.get() === path.get() ? " active" : ""))}
           >
-            {text(() => doc.get().name)}
+            {() => doc.get().name}
           </a>
         );
       })}
@@ -641,9 +638,9 @@ function Sidebar(): Node {
             href={computed(() => "#" + path.get())}
             class={computed(() => "nav-link" + (currentHash.get() === path.get() ? " active" : ""))}
           >
-            {text(() => cl.get().name)}
+            {() => cl.get().name}
             <span class="checklist-progress">
-              {text(() => cl.get().done + "/" + cl.get().total)}
+              {() => cl.get().done + "/" + cl.get().total}
             </span>
           </a>
         );
@@ -741,9 +738,9 @@ function App(): Node {
     "/usecases": () => <UseCasesPage />,
     "/entities": () => <EntitiesPage />,
     "/reference": () => <ReferencePage />,
-    "/doc/:name": () => <DocPage />,
-    "/entity/:name": () => <EntityPage />,
-    "/checklist/:name": () => <ChecklistPage />,
+    "/doc/:name": (p, p$) => DocPage(p, p$),
+    "/entity/:name": (p, p$) => EntityPage(p, p$),
+    "/checklist/:name": (p, p$) => ChecklistPage(p, p$),
     "*": () => <StoriesPage />,
   });
 

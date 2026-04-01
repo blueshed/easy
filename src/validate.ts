@@ -16,6 +16,7 @@ export function validate(schemaName: string, obj: Record<string, unknown>, isChi
         for (const nk of schema.naturalKey) {
             if (schema.columns[nk] || schema.fks.find((fk) => fk.field === nk)) {
                 if (obj[nk] === undefined || obj[nk] === null) {
+                    if (schema.defaults && nk in schema.defaults) continue;
                     throw new ValidationError(`Schema '${schemaName}' is missing required natural key '${nk}'.`);
                 }
             }
