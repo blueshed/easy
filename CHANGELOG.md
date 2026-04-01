@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3
+
+- Fix ChecklistPage: replace `when()` with `effect()` + `replaceChildren()` for same-pattern navigation — `when()` only rebuilds on falsy→truthy transitions, not when data changes while truthy
+
 ## 0.5.2
 
 - Update `@blueshed/railroad` to v0.4.0 — replace `text()` with function children, remove deprecated imports

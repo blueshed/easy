@@ -526,78 +526,81 @@ function ChecklistPage(_: Record<string, string>, params$: Signal<Record<string,
   const cl = computed(() => checklists.get().find((c) => c.name === name.get()));
   const detail = computed(() => checklistDetails.get()[name.get()]);
 
-  return (
-    <div>
-      <h2 class="section-title">{() => name.get()}</h2>
-      {when(
-        () => cl.get()?.description,
-        () => <p class="checklist-desc">{() => cl.get()?.description ?? ""}</p>,
-      )}
-      {when(
-        cl,
-        () => {
-          const c = cl.get()!;
-          const pct = c.total > 0 ? Math.round((c.done / c.total) * 100) : 0;
-          return (
-            <div>
-              <div class="checklist-bar-wrap">
-                <div class="checklist-bar" style={"width:" + pct + "%"} />
+  const container = <div /> as HTMLElement;
+
+  effect(() => {
+    const n = name.get();
+    const c = cl.get();
+    const d = detail.get();
+    container.replaceChildren();
+    if (!n) return;
+
+    container.appendChild(<h2 class="section-title">{n}</h2>);
+
+    if (c?.description) {
+      container.appendChild(<p class="checklist-desc">{c.description}</p>);
+    }
+
+    if (c) {
+      const pct = c.total > 0 ? Math.round((c.done / c.total) * 100) : 0;
+      container.appendChild(
+        <div>
+          <div class="checklist-bar-wrap">
+            <div class="checklist-bar" style={"width:" + pct + "%"} />
+          </div>
+          <span class="checklist-pct">
+            api: {c.api}/{c.total} &nbsp; ux: {c.ux}/{c.total} &nbsp; done: {c.done}/{c.total}
+          </span>
+        </div>
+      );
+    }
+
+    if (d?.checks) {
+      const checks = d.checks;
+      const idToSeq: Record<number, number> = {};
+      checks.forEach((ck) => { idToSeq[ck.id] = ck.seq; });
+      container.appendChild(
+        <div class="checks-list">
+          {checks.map((ck) => {
+            const apiOk = ck.confirmed & 1;
+            const uxOk = ck.confirmed & 2;
+            const fullyDone = ck.confirmed === 3;
+            const classes = "check-item" +
+              (fullyDone ? " confirmed" : "") +
+              (ck.action === "denied" ? " denied" : "");
+            return (
+              <div class={classes}>
+                <div class="check-row-top">
+                  <span class="check-bits">
+                    <span class={"check-bit" + (apiOk ? " ok" : "")}>A</span>
+                    <span class={"check-bit" + (uxOk ? " ok" : "")}>U</span>
+                  </span>
+                  <span class="check-seq">{ck.seq}</span>
+                  <span class={"check-actor actor-" + ck.actor.replace(/[^a-zA-Z]/g, "")}>
+                    {ck.actor}
+                  </span>
+                  <span class="check-action">
+                    {ck.action === "denied" ? "DENIED" : "CAN"}
+                  </span>
+                  {ck.method
+                    ? <a href={"#/entity/" + ck.method.split(".")[0]} class="check-method">{ck.method}</a>
+                    : null}
+                  {ck.depends_on.length > 0
+                    ? <span class="check-deps">after step {ck.depends_on.map((id) => idToSeq[id] || id).join(", ")}</span>
+                    : null}
+                </div>
+                {ck.description
+                  ? <div class="check-row-desc">{ck.description}</div>
+                  : null}
               </div>
-              <span class="checklist-pct">
-                api: {c.api}/{c.total} &nbsp; ux: {c.ux}/{c.total} &nbsp; done: {c.done}/{c.total}
-              </span>
-            </div>
-          );
-        },
-      )}
-      {when(
-        () => detail.get()?.checks,
-        () => {
-          const checks = detail.get()!.checks;
-          const idToSeq: Record<number, number> = {};
-          checks.forEach((c) => { idToSeq[c.id] = c.seq; });
-          return (
-            <div class="checks-list">
-              {checks.map((c) => {
-                const apiOk = c.confirmed & 1;
-                const uxOk = c.confirmed & 2;
-                const fullyDone = c.confirmed === 3;
-                const classes = "check-item" +
-                  (fullyDone ? " confirmed" : "") +
-                  (c.action === "denied" ? " denied" : "");
-                return (
-                  <div class={classes}>
-                    <div class="check-row-top">
-                      <span class="check-bits">
-                        <span class={"check-bit" + (apiOk ? " ok" : "")}>A</span>
-                        <span class={"check-bit" + (uxOk ? " ok" : "")}>U</span>
-                      </span>
-                      <span class="check-seq">{c.seq}</span>
-                      <span class={"check-actor actor-" + c.actor.replace(/[^a-zA-Z]/g, "")}>
-                        {c.actor}
-                      </span>
-                      <span class="check-action">
-                        {c.action === "denied" ? "DENIED" : "CAN"}
-                      </span>
-                      {c.method
-                        ? <a href={"#/entity/" + c.method.split(".")[0]} class="check-method">{c.method}</a>
-                        : null}
-                      {c.depends_on.length > 0
-                        ? <span class="check-deps">after step {c.depends_on.map((id) => idToSeq[id] || id).join(", ")}</span>
-                        : null}
-                    </div>
-                    {c.description
-                      ? <div class="check-row-desc">{c.description}</div>
-                      : null}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        },
-      )}
-    </div>
-  );
+            );
+          })}
+        </div>
+      );
+    }
+  });
+
+  return container;
 }
 
 function navClass(path: string): Signal<string> {
