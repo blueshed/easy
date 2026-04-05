@@ -19,20 +19,25 @@ viewControls.set("graph", graphControls);
 
 let activeControls: ViewportControls = graphControls;
 
-// WebSocket — reconnects automatically, reloads all data on change
-function connect() {
-  const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  const ws = new WebSocket(`${proto}//${location.host}/ws`);
-  ws.onmessage = (e) => {
-    try {
-      const msg = JSON.parse(e.data);
-      if (msg.type === "reload") {
-        reloadAll();
-      }
-    } catch {}
-  };
-  ws.onclose = () => setTimeout(connect, 1000);
-}
+// Schema → reload mapping: which views to refresh for each schema change
+const schemaReloaders: Record<string, (() => void)[]> = {
+  entity:       [reloadEntities, reloadDocuments, reloadStories],
+  field:        [reloadEntities],
+  relation:     [reloadEntities],
+  method:       [reloadEntities, reloadDocuments],
+  publish:      [reloadEntities, reloadDocuments],
+  notification: [reloadDocuments],
+  permission:   [reloadEntities, reloadDocuments],
+  story:        [reloadStories],
+  document:     [reloadDocuments],
+  expansion:    [reloadDocuments],
+  checklist:    [reloadChecklists],
+  check:        [reloadChecklists],
+  metadata:     [reloadStories],
+  task:         [reloadGraph],
+  memory:       [reloadMemories],
+  flag:         [reloadGraph],
+};
 
 function reloadAll() {
   reloadGraph();
@@ -42,6 +47,26 @@ function reloadAll() {
   reloadChecklists();
   reloadMemories();
   reloadReference();
+}
+
+function handleChange(schema: string) {
+  if (schema === "*") { reloadAll(); return; }
+  const fns = schemaReloaders[schema];
+  if (fns) for (const fn of fns) fn();
+  else reloadAll();
+}
+
+// WebSocket — reconnects automatically, dispatches changes by schema
+function connect() {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  const ws = new WebSocket(`${proto}//${location.host}/ws`);
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === "change") handleChange(msg.schema);
+    } catch {}
+  };
+  ws.onclose = () => setTimeout(connect, 1000);
 }
 
 connect();

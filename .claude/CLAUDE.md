@@ -29,6 +29,9 @@ Domain modeling tool for applications built on the **simple** template pattern. 
 - **Permissions** use fkey path syntax to express who can call a method.
 - **Checklists** verify that permission paths work via CAN/DENIED test steps.
 - **Metadata** is a key-value store for project-level settings (theme, app name, etc.).
+- **Tasks** track implementation work as a dependency DAG. Status: pending, in_progress, done, blocked. Dependencies are declared by task name.
+- **Memories** store persistent context as tag+content pairs (architecture, decision, convention, todo).
+- **Flags** are named status indicators (pass, fail, unknown) for tracking project health.
 
 ## CLI API
 
@@ -52,7 +55,7 @@ bun model batch                  # JSONL from stdin: ["save","entity",{...}]
 bun model import <file.yml|json> # Import YAML or JSON file containing model definitions
 ```
 
-Schemas: entity, field, relation, story, document, expansion, method, publish, notification, permission, checklist, check, metadata.
+Schemas: entity, field, relation, story, document, expansion, method, publish, notification, permission, checklist, check, metadata, task, memory, flag.
 
 ## Running
 

@@ -2,7 +2,7 @@
 
 ## CLI Commands
 
-All mutations use `save <schema> '<json>'` or `delete <schema> '<json>'`. The 13 schemas are: entity, field, relation, story, document, expansion, method, publish, notification, permission, checklist, check, metadata.
+All mutations use `save <schema> '<json>'` or `delete <schema> '<json>'`. The 16 schemas are: entity, field, relation, story, document, expansion, method, publish, notification, permission, checklist, check, metadata, task, memory, flag.
 
 ```
 Mutations:
@@ -131,6 +131,30 @@ Natural key: `key`.
 ```bash
 bun model save metadata '{"key":"theme","value":"Dark navy palette"}'
 bun model save metadata '{"key":"name","value":"My Chat App"}'
+```
+
+### task
+Natural key: `name`. Status: `pending` (default), `in_progress`, `done`, `blocked`. Children: `depends_on` (by task name).
+```bash
+bun model save task '{"name":"schema","description":"Create database tables","status":"done"}'
+bun model save task '{"name":"auth","description":"Add JWT middleware","status":"in_progress"}'
+bun model save task '{"name":"publish-flow","description":"Post lifecycle","status":"pending","depends_on":[{"name":"auth"}]}'
+bun model save task '{"name":"tests","status":"blocked","depends_on":[{"name":"auth"},{"name":"publish-flow"}]}'
+```
+
+### memory
+Natural key: `tag` + `content`. Use tags to categorise: architecture, decision, convention, todo, etc.
+```bash
+bun model save memory '{"tag":"architecture","content":"PostFeed uses cursor-based pagination"}'
+bun model save memory '{"tag":"decision","content":"Tags use slugs for URL-safe identifiers"}'
+```
+
+### flag
+Natural key: `name`. Status: `pass`, `fail`, `unknown` (default). Optional `cmd` for automated checks.
+```bash
+bun model save flag '{"name":"db-migrations","status":"pass"}'
+bun model save flag '{"name":"api-tests","status":"fail"}'
+bun model save flag '{"name":"lint","cmd":"bun run lint","status":"unknown"}'
 ```
 
 ## Delete

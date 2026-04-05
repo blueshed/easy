@@ -26,10 +26,10 @@ let diagramPromise: Promise<Record<string, string>> | null = null;
 // WebSocket support
 const clients = new Set<any>();
 
-function broadcastReload() {
+function broadcastChange(schema: string, op: string) {
   cachedDiagrams = null;
   diagramPromise = null;
-  const msg = JSON.stringify({ type: "reload" });
+  const msg = JSON.stringify({ type: "change", schema, op });
   for (const ws of clients) {
     try { ws.send(msg); } catch { clients.delete(ws); }
   }
@@ -162,7 +162,13 @@ const server = Bun.serve({
 
     "/api/internal/reload": {
       async POST(req: Request) {
-        broadcastReload();
+        let schema = "*", op = "reload";
+        try {
+          const body = await req.json() as { schema?: string; op?: string };
+          if (body.schema) schema = body.schema;
+          if (body.op) op = body.op;
+        } catch {}
+        broadcastChange(schema, op);
         return new Response("ok");
       },
     },
