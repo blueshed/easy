@@ -16,11 +16,13 @@ import homepage from "./app.html";
 
 let cachedDiagrams: Record<string, string> | null = null;
 let cachedMtime: number = 0;
+let diagramPromise: Promise<Record<string, string>> | null = null;
 
 // SSE support
 const clients = new Set<ReadableStreamDefaultController<any>>();
 function broadcastReload() {
   cachedDiagrams = null; // invalidate cache
+  diagramPromise = null;
   for (const client of clients) {
     try {
       client.enqueue("data: reload\n\n");
@@ -34,9 +36,19 @@ async function getDiagrams(): Promise<Record<string, string>> {
   const file = Bun.file(getDbPath());
   const mtime = (await file.exists()) ? (await file.stat()).mtimeMs : 0;
   if (cachedDiagrams && mtime === cachedMtime) return cachedDiagrams;
-  cachedDiagrams = await etl();
-  cachedMtime = mtime;
-  return cachedDiagrams;
+  // Prevent concurrent regenerations — reuse in-flight promise
+  if (!diagramPromise) {
+    diagramPromise = etl().then((result) => {
+      cachedDiagrams = result;
+      cachedMtime = mtime;
+      diagramPromise = null;
+      return result;
+    }).catch((err) => {
+      diagramPromise = null;
+      throw err;
+    });
+  }
+  return diagramPromise;
 }
 
 const SVG_HEADERS = {
@@ -59,8 +71,10 @@ setInterval(() => {
   }
 }, 5_000);
 
+const PORT = Number(process.env.PORT ?? 8080);
+
 const server = Bun.serve({
-  port: 8080,
+  port: PORT,
   idleTimeout: 255,
   routes: {
     "/": homepage,
@@ -69,27 +83,27 @@ const server = Bun.serve({
 
     "/api/documents": () => {
       try { return Response.json(getDocumentList()); }
-      catch { return Response.json([]); }
+      catch (e) { console.error("GET /api/documents failed:", e); return Response.json([]); }
     },
 
     "/api/stories": () => {
       try { return Response.json(getStories()); }
-      catch { return Response.json([]); }
+      catch (e) { console.error("GET /api/stories failed:", e); return Response.json([]); }
     },
 
     "/api/entities": () => {
       try { return Response.json(getEntityList()); }
-      catch { return Response.json([]); }
+      catch (e) { console.error("GET /api/entities failed:", e); return Response.json([]); }
     },
 
     "/api/checklists": () => {
       try { return Response.json(getChecklistList()); }
-      catch { return Response.json([]); }
+      catch (e) { console.error("GET /api/checklists failed:", e); return Response.json([]); }
     },
 
     "/api/metadata": () => {
       try { return Response.json(getMetadata()); }
-      catch { return Response.json({}); }
+      catch (e) { console.error("GET /api/metadata failed:", e); return Response.json({}); }
     },
 
     "/api/reference": async () => {

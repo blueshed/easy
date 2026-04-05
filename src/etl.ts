@@ -411,16 +411,20 @@ export async function etl(): Promise<Record<string, string>> {
     return { entities: EMPTY_SVG, usecases: EMPTY_SVG, documents: EMPTY_SVG };
 
   const db = openDb(true);
-  const entityPuml = generateEntityDiagram(db);
-  const usecasePuml = generateUseCaseDiagram(db);
-  const documentPuml = generateDocumentDiagram(db);
-  db.close();
+  let entityPuml: string, usecasePuml: string, documentPuml: string;
+  try {
+    entityPuml = generateEntityDiagram(db);
+    usecasePuml = generateUseCaseDiagram(db);
+    documentPuml = generateDocumentDiagram(db);
+  } finally {
+    db.close();
+  }
 
   const results: Record<string, string> = {};
 
-  results.entities = entityPuml ? await renderSvg(entityPuml) : EMPTY_SVG;
-  results.usecases = usecasePuml ? await renderSvg(usecasePuml) : EMPTY_SVG;
-  results.documents = documentPuml ? await renderSvg(documentPuml) : EMPTY_SVG;
+  results.entities = entityPuml ? await renderSvg(entityPuml).catch(() => EMPTY_SVG) : EMPTY_SVG;
+  results.usecases = usecasePuml ? await renderSvg(usecasePuml).catch(() => EMPTY_SVG) : EMPTY_SVG;
+  results.documents = documentPuml ? await renderSvg(documentPuml).catch(() => EMPTY_SVG) : EMPTY_SVG;
 
   return results;
 }
@@ -429,29 +433,39 @@ export async function documentDiagram(name: string): Promise<string> {
   const file = Bun.file(getDbPath());
   if (!(await file.exists())) return EMPTY_SVG;
   const db = openDb(true);
-  const puml = generateSingleDocumentDiagram(db, name);
-  db.close();
-  return puml ? await renderSvg(puml) : EMPTY_SVG;
+  let puml: string;
+  try {
+    puml = generateSingleDocumentDiagram(db, name);
+  } finally {
+    db.close();
+  }
+  return puml ? await renderSvg(puml).catch(() => EMPTY_SVG) : EMPTY_SVG;
 }
 
 export async function entityDiagram(name: string): Promise<string> {
   const file = Bun.file(getDbPath());
   if (!(await file.exists())) return EMPTY_SVG;
   const db = openDb(true);
-  const puml = generateSingleEntityDiagram(db, name);
-  db.close();
-  return puml ? await renderSvg(puml) : EMPTY_SVG;
+  let puml: string;
+  try {
+    puml = generateSingleEntityDiagram(db, name);
+  } finally {
+    db.close();
+  }
+  return puml ? await renderSvg(puml).catch(() => EMPTY_SVG) : EMPTY_SVG;
 }
 
 // --- Entity metadata ---
 
 export function getEntityList(): { name: string }[] {
   const db = openDb(true);
-  const entities = db
-    .query("SELECT name FROM entities ORDER BY name")
-    .all() as { name: string }[];
-  db.close();
-  return entities;
+  try {
+    return db
+      .query("SELECT name FROM entities ORDER BY name")
+      .all() as { name: string }[];
+  } finally {
+    db.close();
+  }
 }
 
 export function getEntityDetail(name: string): {
@@ -475,11 +489,11 @@ export function getEntityDetail(name: string): {
   changes: { doc: string; path: string | null; collection: boolean; fks: string[] }[];
 } | null {
   const db = openDb(true);
+  try {
   const entity = db
     .query("SELECT * FROM entities WHERE name = ?")
     .get(name) as Entity | null;
   if (!entity) {
-    db.close();
     return null;
   }
 
@@ -602,7 +616,6 @@ export function getEntityDetail(name: string): {
     }
   }
 
-  db.close();
   return {
     name: entity.name,
     fields,
@@ -611,6 +624,9 @@ export function getEntityDetail(name: string): {
     documents,
     changes,
   };
+  } finally {
+    db.close();
+  }
 }
 
 // --- Document metadata ---
@@ -623,8 +639,8 @@ export function getDocumentList(): {
   fetch: string;
   description: string;
 }[] {
-  const file = Bun.file(getDbPath());
   const db = openDb(true);
+  try {
   const docs = db
     .query(
       `SELECT d.name, e.name as entity, d.collection, d.public, d.fetch, d.description FROM documents d
@@ -638,7 +654,6 @@ export function getDocumentList(): {
     fetch: string;
     description: string;
   }[];
-  db.close();
   return docs.map((d) => ({
     name: d.name,
     entity: d.entity,
@@ -647,6 +662,9 @@ export function getDocumentList(): {
     fetch: d.fetch,
     description: d.description,
   }));
+  } finally {
+    db.close();
+  }
 }
 
 export function getDocumentDetail(name: string): {
@@ -668,6 +686,7 @@ export function getDocumentDetail(name: string): {
   stories: { actor: string; action: string }[];
 } | null {
   const db = openDb(true);
+  try {
   const doc = db
     .query(
       `SELECT d.id, d.name, e.name as entity, e.id as entity_id, d.collection, d.public, d.fetch, d.description
@@ -684,7 +703,6 @@ export function getDocumentDetail(name: string): {
     description: string;
   } | null;
   if (!doc) {
-    db.close();
     return null;
   }
 
@@ -769,7 +787,6 @@ export function getDocumentDetail(name: string): {
     }
   }
 
-  db.close();
   return {
     name: doc.name,
     entity: doc.entity,
@@ -781,6 +798,9 @@ export function getDocumentDetail(name: string): {
     changedBy,
     stories,
   };
+  } finally {
+    db.close();
+  }
 }
 
 // --- Stories data for HTML rendering ---
@@ -792,9 +812,8 @@ export function getStories(): {
   description: string;
   links: { type: string; name: string }[];
 }[] {
-  const file = Bun.file(getDbPath());
-  // Sync check — for the HTML template
   const db = openDb(true);
+  try {
   const stories = db
     .query("SELECT * FROM stories ORDER BY id")
     .all() as Story[];
@@ -839,8 +858,10 @@ export function getStories(): {
       links: resolved,
     };
   });
-  db.close();
   return result;
+  } finally {
+    db.close();
+  }
 }
 
 // --- Checklist data ---
@@ -854,30 +875,32 @@ export function getChecklistList(): {
   done: number;
 }[] {
   const db = openDb(true);
-  const checklists = db
-    .query("SELECT * FROM checklists ORDER BY id")
-    .all() as { id: number; name: string; description: string }[];
-  const result = checklists.map((cl) => {
-    const counts = db
-      .query(
-        `SELECT COUNT(*) as total,
-                SUM(CASE WHEN confirmed & 1 THEN 1 ELSE 0 END) as api,
-                SUM(CASE WHEN confirmed & 2 THEN 1 ELSE 0 END) as ux,
-                SUM(CASE WHEN confirmed = 3 THEN 1 ELSE 0 END) as done
-         FROM checks WHERE checklist_id = ?`,
-      )
-      .get(cl.id) as { total: number; api: number; ux: number; done: number };
-    return {
-      name: cl.name,
-      description: cl.description,
-      total: counts.total,
-      api: counts.api ?? 0,
-      ux: counts.ux ?? 0,
-      done: counts.done ?? 0,
-    };
-  });
-  db.close();
-  return result;
+  try {
+    const checklists = db
+      .query("SELECT * FROM checklists ORDER BY id")
+      .all() as { id: number; name: string; description: string }[];
+    return checklists.map((cl) => {
+      const counts = db
+        .query(
+          `SELECT COUNT(*) as total,
+                  SUM(CASE WHEN confirmed & 1 THEN 1 ELSE 0 END) as api,
+                  SUM(CASE WHEN confirmed & 2 THEN 1 ELSE 0 END) as ux,
+                  SUM(CASE WHEN confirmed = 3 THEN 1 ELSE 0 END) as done
+           FROM checks WHERE checklist_id = ?`,
+        )
+        .get(cl.id) as { total: number; api: number; ux: number; done: number };
+      return {
+        name: cl.name,
+        description: cl.description,
+        total: counts.total,
+        api: counts.api ?? 0,
+        ux: counts.ux ?? 0,
+        done: counts.done ?? 0,
+      };
+    });
+  } finally {
+    db.close();
+  }
 }
 
 export function getChecklistDetail(name: string): {
@@ -895,53 +918,55 @@ export function getChecklistDetail(name: string): {
   }[];
 } | null {
   const db = openDb(true);
-  const cl = db
-    .query("SELECT * FROM checklists WHERE name = ?")
-    .get(name) as { id: number; name: string; description: string } | null;
-  if (!cl) {
-    db.close();
-    return null;
-  }
-
-  const checks = db
-    .query("SELECT * FROM checks WHERE checklist_id = ? ORDER BY seq, id")
-    .all(cl.id) as {
-    id: number;
-    seq: number;
-    actor: string;
-    method_id: number | null;
-    action: string;
-    description: string;
-    confirmed: number;
-  }[];
-
-  const result = checks.map((c) => {
-    let method: string | null = null;
-    if (c.method_id) {
-      const m = db
-        .query(
-          "SELECT e.name as entity, m.name as method FROM methods m JOIN entities e ON m.entity_id = e.id WHERE m.id = ?",
-        )
-        .get(c.method_id) as { entity: string; method: string } | null;
-      if (m) method = `${m.entity}.${m.method}`;
+  try {
+    const cl = db
+      .query("SELECT * FROM checklists WHERE name = ?")
+      .get(name) as { id: number; name: string; description: string } | null;
+    if (!cl) {
+      return null;
     }
-    const deps = db
-      .query("SELECT depends_on_id FROM check_deps WHERE check_id = ?")
-      .all(c.id) as { depends_on_id: number }[];
-    return {
-      id: c.id,
-      seq: c.seq,
-      actor: c.actor,
-      action: c.action,
-      method,
-      description: c.description,
-      confirmed: c.confirmed,
-      depends_on: deps.map((d) => d.depends_on_id),
-    };
-  });
 
-  db.close();
-  return { name: cl.name, description: cl.description, checks: result };
+    const checks = db
+      .query("SELECT * FROM checks WHERE checklist_id = ? ORDER BY seq, id")
+      .all(cl.id) as {
+      id: number;
+      seq: number;
+      actor: string;
+      method_id: number | null;
+      action: string;
+      description: string;
+      confirmed: number;
+    }[];
+
+    const result = checks.map((c) => {
+      let method: string | null = null;
+      if (c.method_id) {
+        const m = db
+          .query(
+            "SELECT e.name as entity, m.name as method FROM methods m JOIN entities e ON m.entity_id = e.id WHERE m.id = ?",
+          )
+          .get(c.method_id) as { entity: string; method: string } | null;
+        if (m) method = `${m.entity}.${m.method}`;
+      }
+      const deps = db
+        .query("SELECT depends_on_id FROM check_deps WHERE check_id = ?")
+        .all(c.id) as { depends_on_id: number }[];
+      return {
+        id: c.id,
+        seq: c.seq,
+        actor: c.actor,
+        action: c.action,
+        method,
+        description: c.description,
+        confirmed: c.confirmed,
+        depends_on: deps.map((d) => d.depends_on_id),
+      };
+    });
+
+    return { name: cl.name, description: cl.description, checks: result };
+  } finally {
+    db.close();
+  }
 }
 
 export function getMetadata(): Record<string, string> {

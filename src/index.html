@@ -69,6 +69,9 @@
 
         <script>
             const t = Date.now();
+            var CONFIRMED_API = 1;
+            var CONFIRMED_UX = 2;
+            var CONFIRMED_BOTH = 3;
 
             // Real-time updates via SSE
             const evtSource = new EventSource("/api/events");
@@ -189,9 +192,7 @@
 
             // Load document list into nav and create pages
             fetch("/api/documents")
-                .then(function (r) {
-                    return r.json();
-                })
+                .then(function (r) { return r.json(); })
                 .then(function (docs) {
                     var nav = document.getElementById("doc-nav");
                     var pages = document.getElementById("doc-pages");
@@ -252,17 +253,15 @@
                     // Load detail for each doc
                     docs.forEach(function (doc) {
                         fetch("/api/documents/" + encodeURIComponent(doc.name))
-                            .then(function (r) {
-                                return r.json();
-                            })
-                            .then(function (detail) {
-                                renderDocDetail(doc.name, detail);
-                            });
+                            .then(function (r) { return r.json(); })
+                            .then(function (detail) { renderDocDetail(doc.name, detail); })
+                            .catch(function () {});
                     });
 
                     // Re-navigate in case hash was set before docs loaded
                     navigate();
-                });
+                })
+                .catch(function () {});
 
             function renderDocDetail(name, detail) {
                 var el = document.getElementById("detail-" + name);
@@ -354,9 +353,7 @@
 
             // Load entity pages (no nav links — accessed by clicking entity names)
             fetch("/api/entities")
-                .then(function (r) {
-                    return r.json();
-                })
+                .then(function (r) { return r.json(); })
                 .then(function (entities) {
                     var pages = document.getElementById("entity-pages");
 
@@ -386,16 +383,14 @@
 
                         // Load detail
                         fetch("/api/entities/" + encodeURIComponent(e.name))
-                            .then(function (r) {
-                                return r.json();
-                            })
-                            .then(function (detail) {
-                                renderEntityDetail(e.name, detail);
-                            });
+                            .then(function (r) { return r.json(); })
+                            .then(function (detail) { renderEntityDetail(e.name, detail); })
+                            .catch(function () {});
                     });
 
                     navigate();
-                });
+                })
+                .catch(function () {});
 
             function renderEntityDetail(name, detail) {
                 var el = document.getElementById("entity-detail-" + name);
@@ -551,9 +546,7 @@
 
             // Load checklists
             fetch("/api/checklists")
-                .then(function (r) {
-                    return r.json();
-                })
+                .then(function (r) { return r.json(); })
                 .then(function (checklists) {
                     var nav = document.getElementById("checklist-nav");
                     var pages = document.getElementById("checklist-pages");
@@ -618,16 +611,14 @@
 
                         // Load detail
                         fetch("/api/checklists/" + encodeURIComponent(cl.name))
-                            .then(function (r) {
-                                return r.json();
-                            })
-                            .then(function (detail) {
-                                renderChecklistDetail(cl.name, detail);
-                            });
+                            .then(function (r) { return r.json(); })
+                            .then(function (detail) { renderChecklistDetail(cl.name, detail); })
+                            .catch(function () {});
                     });
 
                     navigate();
-                });
+                })
+                .catch(function () {});
 
             function renderChecklistDetail(name, detail) {
                 var el = document.getElementById(
@@ -643,9 +634,9 @@
 
                 var html = "";
                 detail.checks.forEach(function (c) {
-                    var apiOk = c.confirmed & 1;
-                    var uxOk = c.confirmed & 2;
-                    var fullyDone = c.confirmed === 3;
+                    var apiOk = c.confirmed & CONFIRMED_API;
+                    var uxOk = c.confirmed & CONFIRMED_UX;
+                    var fullyDone = c.confirmed === CONFIRMED_BOTH;
                     var confirmed = fullyDone ? " confirmed" : "";
                     var denied = c.action === "denied" ? " denied" : "";
                     var bits =
@@ -786,7 +777,8 @@
                 .then(function (r) { return r.text(); })
                 .then(function (md) {
                     document.getElementById("reference-content").innerHTML = renderMarkdown(md);
-                });
+                })
+                .catch(function () {});
 
             function navigate() {
                 var hash = location.hash.slice(1) || "stories";

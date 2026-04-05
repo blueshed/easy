@@ -44,6 +44,7 @@ function resolveTarget(db: Database, type: string, name: string): number {
 export function save(db: Database, schemaName: string, obj: Record<string, unknown>): number {
   const schema = SCHEMAS[schemaName];
   if (!schema) throw new Error(`Unknown schema '${schemaName}'`);
+  if (schemaName.startsWith("_")) throw new Error(`Cannot save to internal schema '${schemaName}'`);
 
   validate(schemaName, obj);
 
@@ -309,6 +310,7 @@ function doSaveCheckDep(db: Database, obj: Record<string, unknown>, checkId: num
 export function del(db: Database, schemaName: string, obj: Record<string, unknown>): void {
   const schema = SCHEMAS[schemaName];
   if (!schema) throw new Error(`Unknown schema '${schemaName}'`);
+  if (schemaName.startsWith("_")) throw new Error(`Cannot delete from internal schema '${schemaName}'`);
 
   db.transaction(() => {
     // Resolve FKs
