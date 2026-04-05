@@ -7,10 +7,12 @@ services:
       PLANTUML_URL: http://plantuml:8080
     volumes:
       - ./model.db:/app/model.db
-    depends_on:
-      plantuml:
-        condition: service_healthy
+    # Uncomment to enable PlantUML diagram endpoints
+    # depends_on:
+    #   plantuml:
+    #     condition: service_healthy
 
+  # Optional: PlantUML server for legacy diagram endpoints
   plantuml:
     image: plantuml/plantuml-server:jetty
     ports:

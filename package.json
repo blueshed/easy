@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "plantuml": "docker compose up -d --wait plantuml",
-    "dev": "bun run plantuml && bun run --watch src/site.ts",
+    "dev": "bun run --watch src/site.ts",
     "model": "bun src/cli.ts",
     "model:etl": "bun src/etl.ts",
     "test": "bun test",

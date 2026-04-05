@@ -15,8 +15,22 @@ function triggerChange(schema: string, op: string) {
   }).catch(() => { });
 }
 
-const db = openDb();
 const [cmd, ...rawArgs] = process.argv.slice(2);
+
+// Commands that don't need the database
+if (cmd === "skills") {
+  const skillsDir = import.meta.dir + "/../.claude/skills";
+  const targetDir = rawArgs[0] ?? ".claude/skills";
+  const { stdout, exitCode } = Bun.spawnSync(["cp", "-r", skillsDir + "/.", targetDir]);
+  if (exitCode !== 0) {
+    Bun.spawnSync(["mkdir", "-p", targetDir]);
+    Bun.spawnSync(["cp", "-r", skillsDir + "/.", targetDir]);
+  }
+  console.log(`Copied skills to ${targetDir}`);
+  process.exit(0);
+}
+
+const db = openDb();
 
 function parseFlags(args: string[]): { positional: string[]; flags: Record<string, string | true> } {
   const positional: string[] = [];
@@ -191,6 +205,9 @@ function usage() {
   Batch:
     bun model batch                      JSONL from stdin: ["save","entity",{...}]
     bun model import <file.yml|json>     Import YAML or JSON file containing model definitions
+
+  Setup:
+    bun model skills [target-dir]        Copy skills to .claude/skills (default)
 
   Schemas: ${schemas}`);
 }
