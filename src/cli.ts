@@ -196,29 +196,32 @@ function usage() {
 if (cmd === "batch") {
   const input = await Bun.stdin.text();
   const lines = input.trim().split("\n").filter(Boolean);
-  let ok = 0, fail = 0;
-  for (const line of lines) {
-    try {
-      const arr = JSON.parse(line) as [string, string, unknown];
-      const [command, schemaName, obj] = arr;
-      if (!SCHEMAS[schemaName] || schemaName.startsWith("_")) {
-        throw new Error(`Unknown or internal schema '${schemaName}'`);
+  let count = 0;
+  try {
+    db.transaction(() => {
+      for (const line of lines) {
+        const arr = JSON.parse(line) as [string, string, unknown];
+        const [command, schemaName, obj] = arr;
+        if (!SCHEMAS[schemaName] || schemaName.startsWith("_")) {
+          throw new Error(`Unknown or internal schema '${schemaName}'`);
+        }
+        if (command === "save") {
+          save(db, schemaName, obj as Record<string, unknown>);
+        } else if (command === "delete") {
+          del(db, schemaName, obj as Record<string, unknown>);
+        } else {
+          throw new Error(`Batch only supports save/delete, got '${command}'`);
+        }
+        count++;
       }
-      if (command === "save") {
-        save(db, schemaName, obj as Record<string, unknown>);
-      } else if (command === "delete") {
-        del(db, schemaName, obj as Record<string, unknown>);
-      } else {
-        throw new Error(`Batch only supports save/delete, got '${command}'`);
-      }
-      ok++;
-    } catch (e: any) {
-      console.error(`FAIL: ${line}\n  ${e.message}`);
-      fail++;
-    }
+    })();
+    console.log(`Batch: ${count} ok, ${lines.length} total`);
+    triggerReload();
+  } catch (e: any) {
+    console.error(`Batch failed at item ${count + 1}/${lines.length}: ${e.message}`);
+    console.error("Transaction rolled back — no changes applied.");
+    process.exit(1);
   }
-  console.log(`\nBatch: ${ok} ok, ${fail} failed, ${lines.length} total`);
-  if (ok > 0) triggerReload();
 } else if (!cmd) {
   usage();
 } else {

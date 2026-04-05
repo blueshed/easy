@@ -277,6 +277,14 @@ a.meta-tag:hover {
     border: 1px solid #7c83ff;
     color: #7c83ff;
 }
+.notif-tag {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+    background: #1a1a2e;
+    border: 1px solid #5de;
+    color: #5de;
+}
 
 
 .change-tag {

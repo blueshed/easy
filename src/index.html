@@ -316,6 +316,17 @@
                                 );
                             })
                             .join("");
+                        var notifs = (m.notifications || [])
+                            .map(function (n) {
+                                return (
+                                    '<span class="notif-tag">notifies: ' +
+                                    esc(n.channel) +
+                                    " \u2192 " +
+                                    esc(n.recipients) +
+                                    "</span>"
+                                );
+                            })
+                            .join("");
                         html +=
                             '<div class="method-card">' +
                             '<div class="method-sig">' +
@@ -328,6 +339,7 @@
                             '<div class="method-tags">' +
                             perm +
                             pubs +
+                            notifs +
                             "</div>" +
                             "</div>";
                     });
@@ -414,6 +426,28 @@
                     html += "</div>";
                 }
 
+                // Relations
+                if (detail.relations && detail.relations.length > 0) {
+                    html += '<h3 class="detail-heading">Relations</h3>';
+                    html += '<div class="entity-docs">';
+                    detail.relations.forEach(function (r) {
+                        var card = r.cardinality === "1" ? "belongs-to" : "has-many";
+                        var arrow = r.direction === "to" ? " \u2192 " : " \u2190 ";
+                        html +=
+                            '<a href="#entity-' +
+                            esc(r.entity) +
+                            '" class="link-tag entity">' +
+                            esc(r.entity) +
+                            arrow +
+                            '<span class="role-tag">(' +
+                            card +
+                            ", " +
+                            esc(r.cardinality) +
+                            ")</span></a>";
+                    });
+                    html += "</div>";
+                }
+
                 // Changes
                 if (detail.changes && detail.changes.length > 0) {
                     html += '<h3 class="detail-heading">Changes</h3>';
@@ -464,6 +498,17 @@
                                 );
                             })
                             .join("");
+                        var notifs = (m.notifications || [])
+                            .map(function (n) {
+                                return (
+                                    '<span class="notif-tag">notifies: ' +
+                                    esc(n.channel) +
+                                    " \u2192 " +
+                                    esc(n.recipients) +
+                                    "</span>"
+                                );
+                            })
+                            .join("");
                         html +=
                             '<div class="method-card">' +
                             '<div class="method-sig">' +
@@ -476,6 +521,7 @@
                             '<div class="method-tags">' +
                             perm +
                             pubs +
+                            notifs +
                             "</div>" +
                             "</div>";
                     });

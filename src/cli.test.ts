@@ -488,7 +488,7 @@ describe("batch", () => {
       ["save", "metadata", { key: "batch-key", value: "batch-value" }],
     ]);
     expect(r.exitCode).toBe(0);
-    expect(r.stdout).toContain("2 ok, 0 failed");
+    expect(r.stdout).toContain("2 ok");
 
     // Verify
     const list = run("list", "entity");
@@ -499,14 +499,15 @@ describe("batch", () => {
       ["delete", "entity", { name: "BatchTest" }],
       ["delete", "metadata", { key: "batch-key" }],
     ]);
-    expect(r2.stdout).toContain("2 ok, 0 failed");
+    expect(r2.stdout).toContain("2 ok");
   });
 
-  test("reports failures", () => {
+  test("rolls back on failure", () => {
     const r = batch([
       ["save", "relation", { from: "NonExistent", to: "AlsoNot" }],
     ]);
-    expect(r.stdout).toContain("0 ok, 1 failed");
+    expect(r.exitCode).not.toBe(0);
+    expect(r.stderr).toContain("rolled back");
   });
 });
 
