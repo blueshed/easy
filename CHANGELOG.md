@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.0
+
+- Add agentic context: tasks (dependency DAG), memories (tag+content), flags (status indicators) — 3 new schemas
+- Add use cases view: UML-style actors with colour-coded connections to document/entity groups
+- Delta-doc WebSocket: server broadcasts `{schema, op}`, client dispatches to affected views only
+- Route-aware navigation: sub-views preserved on reload, auto-select first item on documents/checklists
+- Custom SVG diagrams: entity schema, entity detail, document expansion tree — all with clickable navigation
+- PlantUML now optional — client renders all diagrams natively, compose dependency commented out
+- Extract PlantUML to `src/plantuml.ts`, etl.ts uses `withDb()` for graceful missing-db handling
+- Move views to `src/client/views/`, legacy app to `src/legacy/`
+- Toast notifications on 404 navigation to deleted items
+- Consistent empty states with CLI hints across all views
+- `bun model skills [target-dir]` — copy skills from Docker image to local project
+- `bun run typecheck` script added
+- 181 tests, 81.5% coverage — new test files for save.ts and agentic schemas
+- Agentic skill added for managing tasks/memories/flags
+
 ## 0.5.4
 
 - Bump dependencies: tailwindcss 4.2.2, yaml 2.8.3, bun-types 1.3.11
