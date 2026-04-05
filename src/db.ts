@@ -168,6 +168,49 @@ export function openDb(readonly = false): Database {
         up: `
           ALTER TABLE documents ADD COLUMN description TEXT NOT NULL DEFAULT '';
         `
+      },
+      {
+        version: 3,
+        name: "agentic_tables",
+        up: `
+          -- Tasks: development work items with status lifecycle
+          CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            completed_at TEXT
+          );
+
+          -- Task dependencies: DAG of task ordering
+          CREATE TABLE IF NOT EXISTS task_deps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+            depends_on_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+            UNIQUE(task_id, depends_on_id),
+            CHECK(task_id != depends_on_id)
+          );
+
+          -- Memories: tagged context that persists across sessions
+          CREATE TABLE IF NOT EXISTS memories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tag TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(tag, content)
+          );
+          CREATE INDEX IF NOT EXISTS idx_memories_tag ON memories(tag);
+
+          -- Flags: automated health checks
+          CREATE TABLE IF NOT EXISTS flags (
+            name TEXT PRIMARY KEY,
+            cmd TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'unknown',
+            checked_at TEXT
+          );
+        `
       }
     ];
 

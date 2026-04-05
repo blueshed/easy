@@ -14,9 +14,9 @@ Domain modeling tool for applications built on the **simple** template pattern. 
 | `src/etl.ts` | Queries for the site API: entity/document detail, diagrams via PlantUML |
 | `src/site.ts` | Bun HTTP server on port 8080 using parameterized routes (`/api/entities/:name`, etc.) |
 | `.claude/skills/model-app/reference.md` | Full CLI reference documentation (served at `/api/reference` and `#reference`) |
-| `src/app.tsx` | Railroad JSX app — signals, routes, and reactive components |
-| `src/app.html` | HTML shell that loads `app.tsx` |
-| `src/site.css` | Dark theme styles for the site |
+| `src/plantuml.ts` | PlantUML diagram generators and SVG rendering via PlantUML server |
+| `src/client/` | Railroad JSX client app — views, SVG diagrams, routing, WebSocket |
+| `src/legacy/` | Original app.html/app.tsx/site.css (superseded by src/client/) |
 
 ## Key concepts
 
@@ -29,10 +29,13 @@ Domain modeling tool for applications built on the **simple** template pattern. 
 - **Permissions** use fkey path syntax to express who can call a method.
 - **Checklists** verify that permission paths work via CAN/DENIED test steps.
 - **Metadata** is a key-value store for project-level settings (theme, app name, etc.).
+- **Tasks** track implementation work as a dependency DAG. Status: pending, in_progress, done, blocked. Dependencies are declared by task name.
+- **Memories** store persistent context as tag+content pairs (architecture, decision, convention, todo).
+- **Flags** are named status indicators (pass, fail, unknown) for tracking project health.
 
 ## CLI API
 
-All mutations use JSON objects. The CLI has 7 commands and 13 schemas:
+All mutations use JSON objects. The CLI has 7 commands and 16 schemas:
 
 ```bash
 # Mutations — upsert by natural key
@@ -52,7 +55,7 @@ bun model batch                  # JSONL from stdin: ["save","entity",{...}]
 bun model import <file.yml|json> # Import YAML or JSON file containing model definitions
 ```
 
-Schemas: entity, field, relation, story, document, expansion, method, publish, notification, permission, checklist, check, metadata.
+Schemas: entity, field, relation, story, document, expansion, method, publish, notification, permission, checklist, check, metadata, task, memory, flag.
 
 ## Running
 

@@ -39,6 +39,9 @@ export function list(db: Database, schema?: string): void {
     case "relation": listRelations(db); break;
     case "method": listMethods(db); break;
     case "metadata": listMetadata(db); break;
+    case "task": listTasks(db); break;
+    case "memory": listMemories(db); break;
+    case "flag": listFlags(db); break;
     default: {
       if (!SCHEMAS[schema]) {
         console.error(`Unknown schema '${schema}'. Known: ${Object.keys(SCHEMAS).filter(k => !k.startsWith("_")).join(", ")}`);
@@ -60,6 +63,12 @@ function listAll(db: Database) {
   listChecks(db);
   console.log("");
   listMetadata(db);
+  console.log("");
+  listTasks(db);
+  console.log("");
+  listMemories(db);
+  console.log("");
+  listFlags(db);
 }
 
 function listEntities(db: Database) {
@@ -210,6 +219,51 @@ function listGeneric(db: Database, schema: string) {
   for (const row of rows) console.log(JSON.stringify(row));
 }
 
+type T = { id: number; name: string; description: string; status: string; created_at: string; completed_at: string | null };
+type TD = { depends_on_id: number };
+type Mem = { id: number; tag: string; content: string; created_at: string; updated_at: string };
+type Fl = { name: string; cmd: string; status: string; checked_at: string | null };
+
+function listTasks(db: Database) {
+  const tasks = db.query("SELECT * FROM tasks ORDER BY status, created_at").all() as T[];
+  if (tasks.length === 0) { console.log("No tasks."); return; }
+  for (const t of tasks) {
+    const icon = t.status === "done" ? "✓" : t.status === "in_progress" ? "▶" : t.status === "blocked" ? "✗" : "○";
+    const desc = t.description ? ` — ${t.description}` : "";
+    console.log(`${icon} ${t.name}${desc}`);
+    const deps = db.query("SELECT depends_on_id FROM task_deps WHERE task_id = ?").all(t.id) as TD[];
+    for (const d of deps) {
+      const dep = db.query("SELECT name, status FROM tasks WHERE id = ?").get(d.depends_on_id) as { name: string; status: string } | null;
+      if (dep) {
+        const depIcon = dep.status === "done" ? "✓" : "○";
+        console.log(`  ← ${depIcon} ${dep.name}`);
+      }
+    }
+  }
+}
+
+function listMemories(db: Database) {
+  const rows = db.query("SELECT * FROM memories ORDER BY tag, created_at").all() as Mem[];
+  if (rows.length === 0) { console.log("No memories."); return; }
+  let lastTag = "";
+  for (const r of rows) {
+    if (r.tag !== lastTag) {
+      console.log(`\n  [${r.tag}]`);
+      lastTag = r.tag;
+    }
+    console.log(`    #${r.id} ${r.content}`);
+  }
+}
+
+function listFlags(db: Database) {
+  const rows = db.query("SELECT * FROM flags ORDER BY name").all() as Fl[];
+  if (rows.length === 0) { console.log("No flags."); return; }
+  for (const f of rows) {
+    const icon = f.status === "pass" ? "●" : f.status === "fail" ? "○" : "◌";
+    console.log(f.cmd ? `  ${icon} ${f.name} — ${f.cmd}` : `  ${icon} ${f.name} (manual)`);
+  }
+}
+
 // --- Get ---
 
 export function get(db: Database, schema: string, key: string): void {
@@ -243,6 +297,29 @@ export function get(db: Database, schema: string, key: string): void {
       if (!row) { console.error(`Story '${key}' not found.`); throw new Error("fail"); }
       const links = db.query("SELECT target_type, target_id FROM story_links WHERE story_id = ?").all(row.id) as SL[];
       console.log(JSON.stringify({ ...row, links }, null, 2));
+      break;
+    }
+    case "task": {
+      const row = db.query("SELECT * FROM tasks WHERE name = ?").get(key) as T | null;
+      if (!row) { console.error(`Task '${key}' not found.`); throw new Error("fail"); }
+      const deps = db.query(`
+        SELECT t.name, t.status FROM task_deps d
+        JOIN tasks t ON t.id = d.depends_on_id WHERE d.task_id = ?
+      `).all(row.id) as { name: string; status: string }[];
+      const blockers = deps.filter(d => d.status !== "done");
+      console.log(JSON.stringify({ ...row, depends_on: deps, blockers }, null, 2));
+      break;
+    }
+    case "memory": {
+      const rows = db.query("SELECT * FROM memories WHERE tag = ? ORDER BY created_at").all(key) as Mem[];
+      if (rows.length === 0) { console.error(`No memories tagged '${key}'.`); throw new Error("fail"); }
+      console.log(JSON.stringify(rows, null, 2));
+      break;
+    }
+    case "flag": {
+      const row = db.query("SELECT * FROM flags WHERE name = ?").get(key) as Fl | null;
+      if (!row) { console.error(`Flag '${key}' not found.`); throw new Error("fail"); }
+      console.log(JSON.stringify(row, null, 2));
       break;
     }
     default: {
@@ -454,6 +531,48 @@ export function exportSpec(db: Database): void {
     }
   }
 
+  // Tasks
+  const tasks = db.query("SELECT * FROM tasks ORDER BY status, created_at").all() as T[];
+  if (tasks.length > 0) {
+    out.push("## Tasks\n");
+    for (const t of tasks) {
+      const icon = t.status === "done" ? "✓" : t.status === "in_progress" ? "▶" : t.status === "blocked" ? "✗" : "○";
+      const desc = t.description ? ` — ${t.description}` : "";
+      const deps = db.query(`
+        SELECT t.name FROM task_deps d JOIN tasks t ON t.id = d.depends_on_id WHERE d.task_id = ?
+      `).all(t.id) as { name: string }[];
+      const depStr = deps.length > 0 ? ` (depends on: ${deps.map(d => d.name).join(", ")})` : "";
+      out.push(`- ${icon} **${t.name}**${desc}${depStr}`);
+    }
+    out.push("");
+  }
+
+  // Memories
+  const memories = db.query("SELECT * FROM memories ORDER BY tag, created_at").all() as Mem[];
+  if (memories.length > 0) {
+    out.push("## Context\n");
+    let lastTag = "";
+    for (const m of memories) {
+      if (m.tag !== lastTag) {
+        out.push(`### ${m.tag}\n`);
+        lastTag = m.tag;
+      }
+      out.push(`- ${m.content}`);
+    }
+    out.push("");
+  }
+
+  // Flags
+  const flags = db.query("SELECT * FROM flags ORDER BY name").all() as Fl[];
+  if (flags.length > 0) {
+    out.push("## Flags\n");
+    for (const f of flags) {
+      const icon = f.status === "pass" ? "●" : f.status === "fail" ? "○" : "◌";
+      out.push(`- ${icon} **${f.name}**${f.cmd ? ` — \`${f.cmd}\`` : " (manual)"} [${f.status}]`);
+    }
+    out.push("");
+  }
+
   console.log(out.join("\n"));
 }
 
@@ -484,12 +603,19 @@ export function doctor(db: Database, fix: boolean): void {
     total += badDeps.length;
   }
 
+  const badTaskDeps = db.query("SELECT id FROM task_deps WHERE task_id NOT IN (SELECT id FROM tasks) OR depends_on_id NOT IN (SELECT id FROM tasks)").all() as { id: number }[];
+  if (badTaskDeps.length > 0) {
+    console.log(`  ${badTaskDeps.length} orphaned task_deps`);
+    total += badTaskDeps.length;
+  }
+
   if (total === 0) {
     console.log("No orphaned references found.");
   } else if (fix) {
     for (const l of orphanedLinks) db.run("DELETE FROM story_links WHERE id = ?", [l.id]);
     for (const c of badChecks) db.run("DELETE FROM checks WHERE id = ?", [c.id]);
     for (const d of badDeps) db.run("DELETE FROM check_deps WHERE id = ?", [d.id]);
+    for (const d of badTaskDeps) db.run("DELETE FROM task_deps WHERE id = ?", [d.id]);
     console.log(`Removed ${total} orphaned rows.`);
   } else {
     console.log(`\n${total} orphaned rows total. Run with --fix to remove them.`);

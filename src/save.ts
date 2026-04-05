@@ -102,6 +102,9 @@ function doSave(
   if (schemaName === "_check_dep") {
     return doSaveCheckDep(db, obj, parentId!);
   }
+  if (schemaName === "_task_dep") {
+    return doSaveTaskDep(db, obj, parentId!);
+  }
 
   // 3b. Special: expansion parent — resolve "parent" field to parent_expansion_id
   if (schemaName === "expansion" && obj.parent) {
@@ -152,6 +155,28 @@ function doSave(
     if (!key || value === undefined) throw new Error("Metadata requires key and value");
     db.run("INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)", [key, value]);
     return 0; // no integer rowId for metadata
+  }
+
+  // 5d. Special: flag uses name TEXT PRIMARY KEY (no id column)
+  if (schemaName === "flag") {
+    const name = obj.name as string;
+    if (!name) throw new Error("Flag requires name");
+    const existing = db.query("SELECT name FROM flags WHERE name = ?").get(name);
+    if (existing) {
+      const sets: string[] = [];
+      const vals: SQLQueryBindings[] = [];
+      if (obj.cmd !== undefined) { sets.push("cmd = ?"); vals.push(obj.cmd as string); }
+      if (obj.status !== undefined) { sets.push("status = ?"); vals.push(obj.status as string); }
+      if (obj.checked_at !== undefined) { sets.push("checked_at = ?"); vals.push(obj.checked_at as string); }
+      if (sets.length > 0) {
+        db.run(`UPDATE flags SET ${sets.join(", ")} WHERE name = ?`, [...vals, name]);
+      }
+    } else {
+      const cmd = (obj.cmd ?? "") as string;
+      const status = (obj.status ?? "unknown") as string;
+      db.run("INSERT INTO flags (name, cmd, status) VALUES (?, ?, ?)", [name, cmd, status]);
+    }
+    return 0;
   }
 
   // 5b. Look up existing row
@@ -301,6 +326,45 @@ function doSaveCheckDep(db: Database, obj: Record<string, unknown>, checkId: num
   const info = db.run(
     "INSERT INTO check_deps (check_id, depends_on_id) VALUES (?, ?)",
     [checkId, depId],
+  );
+  return Number(info.lastInsertRowid);
+}
+
+// --- Special: task deps ---
+
+function doSaveTaskDep(db: Database, obj: Record<string, unknown>, taskId: number): number {
+  let depId = Number(obj.depends_on_id ?? obj.depends_on ?? obj.id ?? 0);
+
+  // Resolve by name
+  if (!depId && obj.name) {
+    const row = db.query("SELECT id FROM tasks WHERE name = ?").get(String(obj.name)) as { id: number } | null;
+    if (!row) throw new Error(`Task '${obj.name}' not found`);
+    depId = row.id;
+  }
+
+  if (!depId) throw new Error("Task dependency requires depends_on_id or name");
+  if (depId === taskId) throw new Error("Task cannot depend on itself");
+
+  // Cycle detection
+  const visited = new Set<number>();
+  const stack = [depId];
+  while (stack.length) {
+    const current = stack.pop()!;
+    if (current === taskId) throw new Error("Cycle detected in task dependencies");
+    if (visited.has(current)) continue;
+    visited.add(current);
+    const parents = db.query("SELECT depends_on_id FROM task_deps WHERE task_id = ?").all(current) as { depends_on_id: number }[];
+    for (const p of parents) stack.push(p.depends_on_id);
+  }
+
+  const existing = db
+    .query("SELECT id FROM task_deps WHERE task_id = ? AND depends_on_id = ?")
+    .get(taskId, depId) as { id: number } | null;
+  if (existing) return existing.id;
+
+  const info = db.run(
+    "INSERT INTO task_deps (task_id, depends_on_id) VALUES (?, ?)",
+    [taskId, depId],
   );
   return Number(info.lastInsertRowid);
 }

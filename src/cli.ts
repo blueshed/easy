@@ -7,8 +7,12 @@ import { readFileSync } from "fs";
 
 const SITE_PORT = Number(process.env.PORT ?? 8080);
 
-function triggerReload() {
-  fetch(`http://localhost:${SITE_PORT}/api/internal/reload`, { method: "POST" }).catch(() => { });
+function triggerChange(schema: string, op: string) {
+  fetch(`http://localhost:${SITE_PORT}/api/internal/reload`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ schema, op }),
+  }).catch(() => { });
 }
 
 const db = openDb();
@@ -49,7 +53,7 @@ function dispatch(command: string, args: string[]): void {
       }
       const id = save(db, schemaName, obj);
       console.log(`Saved ${schemaName} (id: ${id})`);
-      triggerReload();
+      triggerChange(schemaName, command ?? cmd);
       break;
     }
 
@@ -70,7 +74,7 @@ function dispatch(command: string, args: string[]): void {
       }
       del(db, schemaName, obj);
       console.log(`Deleted ${schemaName}`);
-      triggerReload();
+      triggerChange(schemaName, command ?? cmd);
       break;
     }
 
@@ -129,7 +133,7 @@ function dispatch(command: string, args: string[]): void {
         }
       })();
       console.log(`Imported ${imported} items from ${file}`);
-      triggerReload();
+      triggerChange("*", "import");
       break;
     }
 
@@ -216,7 +220,7 @@ if (cmd === "batch") {
       }
     })();
     console.log(`Batch: ${count} ok, ${lines.length} total`);
-    triggerReload();
+    triggerChange("*", "batch");
   } catch (e: any) {
     console.error(`Batch failed at item ${count + 1}/${lines.length}: ${e.message}`);
     console.error("Transaction rolled back — no changes applied.");

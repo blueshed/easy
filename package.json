@@ -7,10 +7,11 @@
     "dev": "bun run plantuml && bun run --watch src/site.ts",
     "model": "bun src/cli.ts",
     "model:etl": "bun src/etl.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "@blueshed/railroad": "github:blueshed/railroad",
+    "@blueshed/railroad": "^0.4.0",
     "bun-plugin-tailwind": "^0.1.2",
     "feather-icons": "^4.29.2",
     "postgres": "^3.4.8",

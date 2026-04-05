@@ -345,6 +345,34 @@ export const SCHEMAS: Record<string, SchemaDefinition> = {
     fks: [],
   },
 
+  // --- Agentic schemas ---
+
+  task: {
+    table: "tasks",
+    naturalKey: ["name"],
+    columns: { name: "name", description: "description", status: "status" },
+    fks: [],
+    defaults: { description: "", status: "pending" },
+    children: [
+      { key: "depends_on", schema: "_task_dep", parentFkColumn: "task_id" },
+    ],
+  },
+
+  memory: {
+    table: "memories",
+    naturalKey: ["tag", "content"],
+    columns: { tag: "tag", content: "content" },
+    fks: [],
+  },
+
+  flag: {
+    table: "flags",
+    naturalKey: ["name"],
+    columns: { name: "name", cmd: "cmd", status: "status" },
+    fks: [],
+    defaults: { cmd: "", status: "unknown" },
+  },
+
   // --- Internal child schemas (not directly invokable) ---
 
   _story_link: {
@@ -359,5 +387,12 @@ export const SCHEMAS: Record<string, SchemaDefinition> = {
     naturalKey: ["_parent_id", "depends_on_id"],
     columns: {},
     fks: [], // special: depends_on_id is a check ID resolved by reference
+  },
+
+  _task_dep: {
+    table: "task_deps",
+    naturalKey: ["_parent_id", "depends_on_id"],
+    columns: {},
+    fks: [], // special: depends_on_id is a task ID resolved by reference
   },
 };

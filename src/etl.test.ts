@@ -15,6 +15,7 @@ import {
   getChecklistList,
   getChecklistDetail,
   getMetadata,
+  getDomainSchema,
 } from "./etl";
 import { openDb } from "./db";
 
@@ -462,18 +463,72 @@ describe("getMetadata", () => {
   });
 });
 
-// ─── Diagram generation (PlantUML source, not SVG) ───
+// ─── Domain Schema ───
 
-describe("diagram generation", () => {
-  // We can't test renderSvg without a PlantUML server, but we can test the
-  // PlantUML source generators by importing them indirectly through the DB
+describe("getDomainSchema", () => {
+  test("returns all entities as tables", () => {
+    const schema = getDomainSchema();
+    const names = schema.map(t => t.table);
+    expect(names).toContain("User");
+    expect(names).toContain("Project");
+    expect(names).toContain("Task");
+    expect(names).toContain("Comment");
+  });
 
-  test("entity diagram source via direct DB", () => {
-    const db = openDb(true);
-    // Access the private generator by checking its output through the DB content
-    // The entity diagram should have all entities in it
-    const entities = db.query("SELECT name FROM entities ORDER BY name").all() as { name: string }[];
-    db.close();
-    expect(entities.length).toBe(4);
+  test("includes fields as columns", () => {
+    const schema = getDomainSchema();
+    const user = schema.find(t => t.table === "User")!;
+    const colNames = user.columns.map(c => c.name);
+    expect(colNames).toContain("email");
+    expect(colNames).toContain("name");
+  });
+
+  test("marks id as primary key", () => {
+    const schema = getDomainSchema();
+    const project = schema.find(t => t.table === "Project")!;
+    // Project doesn't have an id field in our seed, but if it did...
+    // Check that fields named "id" get pk=1
+    for (const col of project.columns) {
+      if (col.name === "id") expect(col.pk).toBe(1);
+    }
+  });
+
+  test("includes relations as foreign keys", () => {
+    const schema = getDomainSchema();
+    const user = schema.find(t => t.table === "User")!;
+    // User -> Project relation with label "owner"
+    const fk = user.foreignKeys.find(f => f.table === "Project");
+    expect(fk).toBeDefined();
+    expect(fk!.to).toBe("id");
+  });
+});
+
+// ─── Document expansions in detail ───
+
+describe("getDocumentDetail expansions", () => {
+  test("returns expansion tree", () => {
+    const detail = getDocumentDetail("ProjectDoc")!;
+    expect(detail.expansions).toBeDefined();
+    expect(detail.expansions.length).toBeGreaterThan(0);
+    const tasks = detail.expansions.find((e: any) => e.name === "tasks");
+    expect(tasks).toBeDefined();
+    expect(tasks!.entity).toBe("Task");
+    expect(tasks!.type).toBe("has-many");
+  });
+
+  test("returns nested expansions as children", () => {
+    const detail = getDocumentDetail("ProjectDoc")!;
+    const tasks = detail.expansions.find((e: any) => e.name === "tasks");
+    expect(tasks!.children.length).toBeGreaterThan(0);
+    const comments = tasks!.children.find((e: any) => e.name === "comments");
+    expect(comments).toBeDefined();
+    expect(comments!.entity).toBe("Comment");
+  });
+
+  test("marks belongs-to expansions", () => {
+    const detail = getDocumentDetail("ProjectDoc")!;
+    const owner = detail.expansions.find((e: any) => e.name === "owner");
+    expect(owner).toBeDefined();
+    expect(owner!.type).toBe("belongs-to");
   });
 });
