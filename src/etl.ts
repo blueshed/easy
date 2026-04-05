@@ -684,6 +684,7 @@ export function getDocumentDetail(name: string): {
   }[];
   changedBy: { entity: string; path: string | null; fks: string[] }[];
   stories: { actor: string; action: string }[];
+  expansions: { name: string; entity: string; type: string; children: any[] }[];
 } | null {
   const db = openDb(true);
   try {
@@ -787,6 +788,24 @@ export function getDocumentDetail(name: string): {
     }
   }
 
+  // Build expansion tree for diagram
+  const allDocExps = db.query(`
+    SELECT x.id, x.name, e.name as entity_name, x.belongs_to, x.shallow, x.parent_expansion_id
+    FROM expansions x JOIN entities e ON x.entity_id = e.id
+    WHERE x.document_id = ? ORDER BY x.id
+  `).all(doc.id) as { id: number; name: string; entity_name: string; belongs_to: number; shallow: number; parent_expansion_id: number | null }[];
+
+  function buildExpTree(parentId: number | null): { name: string; entity: string; type: string; children: any[] }[] {
+    return allDocExps
+      .filter(x => x.parent_expansion_id === parentId)
+      .map(x => ({
+        name: x.name,
+        entity: x.entity_name,
+        type: x.belongs_to ? "belongs-to" : x.shallow ? "shallow" : "has-many",
+        children: buildExpTree(x.id),
+      }));
+  }
+
   return {
     name: doc.name,
     entity: doc.entity,
@@ -797,6 +816,7 @@ export function getDocumentDetail(name: string): {
     methods: methodDetails,
     changedBy,
     stories,
+    expansions: buildExpTree(null),
   };
   } finally {
     db.close();
@@ -969,6 +989,48 @@ export function getChecklistDetail(name: string): {
   }
 }
 
+// --- Agentic data ---
+
+export function getTaskGraph(): {
+  tasks: { id: number; name: string; description: string; status: string }[];
+  deps: { task_id: number; depends_on: number }[];
+  flags: { name: string; status: string }[];
+} {
+  const db = openDb(true);
+  try {
+    const tasks = db.query("SELECT id, name, description, status FROM tasks ORDER BY created_at").all() as { id: number; name: string; description: string; status: string }[];
+    const deps = db.query("SELECT task_id, depends_on_id as depends_on FROM task_deps").all() as { task_id: number; depends_on: number }[];
+    const flags = db.query("SELECT name, status FROM flags ORDER BY name").all() as { name: string; status: string }[];
+    return { tasks, deps, flags };
+  } catch {
+    return { tasks: [], deps: [], flags: [] };
+  } finally {
+    db.close();
+  }
+}
+
+export function getMemories(): { id: number; tag: string; content: string; created_at: string; updated_at: string }[] {
+  const db = openDb(true);
+  try {
+    return db.query("SELECT * FROM memories ORDER BY tag, created_at").all() as { id: number; tag: string; content: string; created_at: string; updated_at: string }[];
+  } catch {
+    return [];
+  } finally {
+    db.close();
+  }
+}
+
+export function getFlags(): { name: string; cmd: string; status: string; checked_at: string | null }[] {
+  const db = openDb(true);
+  try {
+    return db.query("SELECT * FROM flags ORDER BY name").all() as { name: string; cmd: string; status: string; checked_at: string | null }[];
+  } catch {
+    return [];
+  } finally {
+    db.close();
+  }
+}
+
 export function getMetadata(): Record<string, string> {
   const db = openDb(true);
   try {
@@ -981,6 +1043,54 @@ export function getMetadata(): Record<string, string> {
     return result;
   } catch {
     return {};
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Returns domain entities as a schema-view-compatible structure.
+ * Each entity becomes a "table" with its fields as columns and
+ * relations as foreign keys.
+ */
+export function getDomainSchema(): {
+  table: string;
+  columns: { cid: number; name: string; type: string; notnull: number; dflt_value: string | null; pk: number }[];
+  foreignKeys: { id: number; seq: number; table: string; from: string; to: string }[];
+}[] {
+  const db = openDb(true);
+  try {
+    const entities = db.query("SELECT id, name FROM entities ORDER BY name").all() as Entity[];
+    const nameById = new Map(entities.map((e) => [e.id, e.name]));
+
+    return entities.map((entity) => {
+      const fields = db.query("SELECT name, type FROM fields WHERE entity_id = ? ORDER BY id").all(entity.id) as Field[];
+      const relations = db.query(`
+        SELECT r.label, r.cardinality, e2.name as to_name
+        FROM relations r
+        JOIN entities e2 ON e2.id = r.to_entity_id
+        WHERE r.from_entity_id = ?
+      `).all(entity.id) as { label: string; cardinality: string; to_name: string }[];
+
+      const columns = fields.map((f, i) => ({
+        cid: i,
+        name: f.name,
+        type: f.type,
+        notnull: f.name === "id" ? 1 : 0,
+        dflt_value: null,
+        pk: f.name === "id" ? 1 : 0,
+      }));
+
+      const foreignKeys = relations.map((r, i) => ({
+        id: i,
+        seq: 0,
+        table: r.to_name,
+        from: r.label || r.to_name.toLowerCase() + "_id",
+        to: "id",
+      }));
+
+      return { table: entity.name, columns, foreignKeys };
+    });
   } finally {
     db.close();
   }

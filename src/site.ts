@@ -1,3 +1,4 @@
+import { Database } from "bun:sqlite";
 import { getDbPath } from "./db";
 import {
   etl,
@@ -11,24 +12,26 @@ import {
   getChecklistList,
   getChecklistDetail,
   getMetadata,
+  getTaskGraph,
+  getMemories,
+  getFlags,
+  getDomainSchema,
 } from "./etl";
-import homepage from "./app.html";
+import homepage from "./client/index.html";
 
 let cachedDiagrams: Record<string, string> | null = null;
 let cachedMtime: number = 0;
 let diagramPromise: Promise<Record<string, string>> | null = null;
 
-// SSE support
-const clients = new Set<ReadableStreamDefaultController<any>>();
+// WebSocket support
+const clients = new Set<any>();
+
 function broadcastReload() {
-  cachedDiagrams = null; // invalidate cache
+  cachedDiagrams = null;
   diagramPromise = null;
-  for (const client of clients) {
-    try {
-      client.enqueue("data: reload\n\n");
-    } catch {
-      clients.delete(client);
-    }
+  const msg = JSON.stringify({ type: "reload" });
+  for (const ws of clients) {
+    try { ws.send(msg); } catch { clients.delete(ws); }
   }
 }
 
@@ -36,7 +39,6 @@ async function getDiagrams(): Promise<Record<string, string>> {
   const file = Bun.file(getDbPath());
   const mtime = (await file.exists()) ? (await file.stat()).mtimeMs : 0;
   if (cachedDiagrams && mtime === cachedMtime) return cachedDiagrams;
-  // Prevent concurrent regenerations — reuse in-flight promise
   if (!diagramPromise) {
     diagramPromise = etl().then((result) => {
       cachedDiagrams = result;
@@ -60,16 +62,25 @@ function svgResponse(svg: string) {
   return new Response(svg, { headers: SVG_HEADERS });
 }
 
-// SSE keepalive — send a comment every 30s so connections don't idle out
-setInterval(() => {
-  for (const client of clients) {
-    try {
-      client.enqueue(": keepalive\n\n");
-    } catch {
-      clients.delete(client);
-    }
+function readSchema() {
+  const dbPath = getDbPath();
+  const db = new Database(dbPath, { readonly: true });
+  try {
+    db.exec("PRAGMA foreign_keys = ON");
+    // Exclude internal tables (migrations) and agentic dev tables (tasks, task_deps, memories, flags)
+    const DEV_TABLES = new Set(["migrations", "tasks", "task_deps", "memories", "flags"]);
+    const tables = (db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    ).all() as { name: string }[]).filter((t) => !DEV_TABLES.has(t.name));
+    return tables.map((t) => ({
+      table: t.name,
+      columns: db.prepare(`PRAGMA table_info("${t.name.replace(/"/g, '""')}")`).all(),
+      foreignKeys: db.prepare(`PRAGMA foreign_key_list("${t.name.replace(/"/g, '""')}")`).all(),
+    }));
+  } finally {
+    db.close();
   }
-}, 5_000);
+}
 
 const PORT = Number(process.env.PORT ?? 8080);
 
@@ -106,6 +117,31 @@ const server = Bun.serve({
       catch (e) { console.error("GET /api/metadata failed:", e); return Response.json({}); }
     },
 
+    "/api/tasks": () => {
+      try { return Response.json(getTaskGraph()); }
+      catch (e) { console.error("GET /api/tasks failed:", e); return Response.json({ tasks: [], deps: [], flags: [] }); }
+    },
+
+    "/api/memories": () => {
+      try { return Response.json(getMemories()); }
+      catch (e) { console.error("GET /api/memories failed:", e); return Response.json([]); }
+    },
+
+    "/api/flags": () => {
+      try { return Response.json(getFlags()); }
+      catch (e) { console.error("GET /api/flags failed:", e); return Response.json([]); }
+    },
+
+    "/api/schema": () => {
+      try { return Response.json(readSchema()); }
+      catch (e) { console.error("GET /api/schema failed:", e); return Response.json([]); }
+    },
+
+    "/api/domain-schema": () => {
+      try { return Response.json(getDomainSchema()); }
+      catch (e) { console.error("GET /api/domain-schema failed:", e); return Response.json([]); }
+    },
+
     "/api/reference": async () => {
       const file = Bun.file(import.meta.dir + "/../.claude/skills/model-app/reference.md");
       if (!(await file.exists())) return new Response("Not found", { status: 404 });
@@ -118,7 +154,6 @@ const server = Bun.serve({
       if (!(await skillFile.exists()) || !(await refFile.exists())) return new Response("Not found", { status: 404 });
       let skill = await skillFile.text();
       const ref = await refFile.text();
-      // Strip YAML frontmatter
       skill = skill.replace(/^---\n[\s\S]*?\n---\n*/, "");
       return new Response(skill + "\n---\n\n" + ref, { headers: { "Content-Type": "text/markdown; charset=utf-8" } });
     },
@@ -130,33 +165,6 @@ const server = Bun.serve({
         broadcastReload();
         return new Response("ok");
       },
-    },
-
-    // --- SSE Endpoint ---
-
-    "/api/events": (req) => {
-      let ctrl: ReadableStreamDefaultController<any>;
-      return new Response(
-        new ReadableStream({
-          start(controller) {
-            ctrl = controller;
-            clients.add(ctrl);
-            req.signal.addEventListener("abort", () => {
-              clients.delete(ctrl);
-            });
-          },
-          cancel() {
-            clients.delete(ctrl);
-          },
-        }),
-        {
-          headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            Connection: "keep-alive",
-          },
-        }
-      );
     },
 
     // --- Detail endpoints ---
@@ -210,7 +218,24 @@ const server = Bun.serve({
     },
   },
 
-  fetch() {
+  websocket: {
+    open(ws) {
+      clients.add(ws);
+    },
+    message(ws, msg) {
+      // clients don't send messages yet — reserved for future use
+    },
+    close(ws) {
+      clients.delete(ws);
+    },
+  },
+
+  fetch(req) {
+    // WebSocket upgrade
+    if (new URL(req.url).pathname === "/ws") {
+      if (server.upgrade(req)) return;
+      return new Response("WebSocket upgrade failed", { status: 400 });
+    }
     return new Response("Not found", { status: 404 });
   },
 });
