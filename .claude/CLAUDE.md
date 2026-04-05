@@ -14,9 +14,9 @@ Domain modeling tool for applications built on the **simple** template pattern. 
 | `src/etl.ts` | Queries for the site API: entity/document detail, diagrams via PlantUML |
 | `src/site.ts` | Bun HTTP server on port 8080 using parameterized routes (`/api/entities/:name`, etc.) |
 | `.claude/skills/model-app/reference.md` | Full CLI reference documentation (served at `/api/reference` and `#reference`) |
-| `src/app.tsx` | Railroad JSX app — signals, routes, and reactive components |
-| `src/app.html` | HTML shell that loads `app.tsx` |
-| `src/site.css` | Dark theme styles for the site |
+| `src/plantuml.ts` | PlantUML diagram generators and SVG rendering via PlantUML server |
+| `src/client/` | Railroad JSX client app — views, SVG diagrams, routing, WebSocket |
+| `src/legacy/` | Original app.html/app.tsx/site.css (superseded by src/client/) |
 
 ## Key concepts
 
@@ -35,7 +35,7 @@ Domain modeling tool for applications built on the **simple** template pattern. 
 
 ## CLI API
 
-All mutations use JSON objects. The CLI has 7 commands and 13 schemas:
+All mutations use JSON objects. The CLI has 7 commands and 16 schemas:
 
 ```bash
 # Mutations — upsert by natural key

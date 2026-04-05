@@ -2,9 +2,17 @@ import { Database } from "bun:sqlite";
 import { getDbPath, openDb } from "./db";
 export { etl, documentDiagram, entityDiagram } from "./plantuml";
 
+/** Run a readonly query, returning fallback if db doesn't exist. */
+function withDb<T>(fallback: T, fn: (db: Database) => T): T {
+  let db: Database;
+  try { db = openDb(true); } catch { return fallback; }
+  try { return fn(db); } catch { return fallback; } finally { db.close(); }
+}
+
 // --- Types ---
 
 interface Entity { id: number; name: string }
+interface Field { name: string; type: string }
 interface Method {
   id: number; name: string; args: string; return_type: string; auth_required: number;
 }
@@ -29,14 +37,9 @@ function parseArgs(json: string): string {
 // --- Entity metadata ---
 
 export function getEntityList(): { name: string }[] {
-  const db = openDb(true);
-  try {
-    return db
-      .query("SELECT name FROM entities ORDER BY name")
-      .all() as { name: string }[];
-  } finally {
-    db.close();
-  }
+  return withDb([], (db) =>
+    db.query("SELECT name FROM entities ORDER BY name").all() as { name: string }[]
+  );
 }
 
 export function getEntityDetail(name: string): {
@@ -59,8 +62,7 @@ export function getEntityDetail(name: string): {
   documents: { name: string; role: string }[];
   changes: { doc: string; path: string | null; collection: boolean; fks: string[] }[];
 } | null {
-  const db = openDb(true);
-  try {
+  return withDb(null, (db) => {
   const entity = db
     .query("SELECT * FROM entities WHERE name = ?")
     .get(name) as Entity | null;
@@ -195,9 +197,7 @@ export function getEntityDetail(name: string): {
     documents,
     changes,
   };
-  } finally {
-    db.close();
-  }
+  });
 }
 
 // --- Document metadata ---
@@ -210,8 +210,7 @@ export function getDocumentList(): {
   fetch: string;
   description: string;
 }[] {
-  const db = openDb(true);
-  try {
+  return withDb([], (db) => {
   const docs = db
     .query(
       `SELECT d.name, e.name as entity, d.collection, d.public, d.fetch, d.description FROM documents d
@@ -233,9 +232,7 @@ export function getDocumentList(): {
     fetch: d.fetch,
     description: d.description,
   }));
-  } finally {
-    db.close();
-  }
+  });
 }
 
 export function getDocumentDetail(name: string): {
@@ -257,8 +254,7 @@ export function getDocumentDetail(name: string): {
   stories: { actor: string; action: string }[];
   expansions: { name: string; entity: string; type: string; children: any[] }[];
 } | null {
-  const db = openDb(true);
-  try {
+  return withDb(null, (db) => {
   const doc = db
     .query(
       `SELECT d.id, d.name, e.name as entity, e.id as entity_id, d.collection, d.public, d.fetch, d.description
@@ -389,9 +385,7 @@ export function getDocumentDetail(name: string): {
     stories,
     expansions: buildExpTree(null),
   };
-  } finally {
-    db.close();
-  }
+  });
 }
 
 // --- Stories data for HTML rendering ---
@@ -403,8 +397,7 @@ export function getStories(): {
   description: string;
   links: { type: string; name: string }[];
 }[] {
-  const db = openDb(true);
-  try {
+  return withDb([], (db) => {
   const stories = db
     .query("SELECT * FROM stories ORDER BY id")
     .all() as Story[];
@@ -450,9 +443,7 @@ export function getStories(): {
     };
   });
   return result;
-  } finally {
-    db.close();
-  }
+  });
 }
 
 // --- Checklist data ---
@@ -465,8 +456,7 @@ export function getChecklistList(): {
   ux: number;
   done: number;
 }[] {
-  const db = openDb(true);
-  try {
+  return withDb([], (db) => {
     const checklists = db
       .query("SELECT * FROM checklists ORDER BY id")
       .all() as { id: number; name: string; description: string }[];
@@ -489,9 +479,7 @@ export function getChecklistList(): {
         done: counts.done ?? 0,
       };
     });
-  } finally {
-    db.close();
-  }
+  });
 }
 
 export function getChecklistDetail(name: string): {
@@ -508,8 +496,7 @@ export function getChecklistDetail(name: string): {
     depends_on: number[];
   }[];
 } | null {
-  const db = openDb(true);
-  try {
+  return withDb(null, (db) => {
     const cl = db
       .query("SELECT * FROM checklists WHERE name = ?")
       .get(name) as { id: number; name: string; description: string } | null;
@@ -555,9 +542,7 @@ export function getChecklistDetail(name: string): {
     });
 
     return { name: cl.name, description: cl.description, checks: result };
-  } finally {
-    db.close();
-  }
+  });
 }
 
 // --- Agentic data ---
@@ -567,44 +552,28 @@ export function getTaskGraph(): {
   deps: { task_id: number; depends_on: number }[];
   flags: { name: string; status: string }[];
 } {
-  const db = openDb(true);
-  try {
+  return withDb({ tasks: [], deps: [], flags: [] }, (db) => {
     const tasks = db.query("SELECT id, name, description, status FROM tasks ORDER BY created_at").all() as { id: number; name: string; description: string; status: string }[];
     const deps = db.query("SELECT task_id, depends_on_id as depends_on FROM task_deps").all() as { task_id: number; depends_on: number }[];
     const flags = db.query("SELECT name, status FROM flags ORDER BY name").all() as { name: string; status: string }[];
     return { tasks, deps, flags };
-  } catch {
-    return { tasks: [], deps: [], flags: [] };
-  } finally {
-    db.close();
-  }
+  });
 }
 
 export function getMemories(): { id: number; tag: string; content: string; created_at: string; updated_at: string }[] {
-  const db = openDb(true);
-  try {
+  return withDb([], (db) => {
     return db.query("SELECT * FROM memories ORDER BY tag, created_at").all() as { id: number; tag: string; content: string; created_at: string; updated_at: string }[];
-  } catch {
-    return [];
-  } finally {
-    db.close();
-  }
+  });
 }
 
 export function getFlags(): { name: string; cmd: string; status: string; checked_at: string | null }[] {
-  const db = openDb(true);
-  try {
+  return withDb([], (db) => {
     return db.query("SELECT * FROM flags ORDER BY name").all() as { name: string; cmd: string; status: string; checked_at: string | null }[];
-  } catch {
-    return [];
-  } finally {
-    db.close();
-  }
+  });
 }
 
 export function getMetadata(): Record<string, string> {
-  const db = openDb(true);
-  try {
+  return withDb({}, (db) => {
     const rows = db.query("SELECT key, value FROM metadata").all() as {
       key: string;
       value: string;
@@ -612,11 +581,7 @@ export function getMetadata(): Record<string, string> {
     const result: Record<string, string> = {};
     for (const r of rows) result[r.key] = r.value;
     return result;
-  } catch {
-    return {};
-  } finally {
-    db.close();
-  }
+  });
 }
 
 /**
@@ -629,10 +594,8 @@ export function getDomainSchema(): {
   columns: { cid: number; name: string; type: string; notnull: number; dflt_value: string | null; pk: number }[];
   foreignKeys: { id: number; seq: number; table: string; from: string; to: string }[];
 }[] {
-  const db = openDb(true);
-  try {
+  return withDb([], (db) => {
     const entities = db.query("SELECT id, name FROM entities ORDER BY name").all() as Entity[];
-    const nameById = new Map(entities.map((e) => [e.id, e.name]));
 
     return entities.map((entity) => {
       const fields = db.query("SELECT name, type FROM fields WHERE entity_id = ? ORDER BY id").all(entity.id) as Field[];
@@ -652,25 +615,22 @@ export function getDomainSchema(): {
         pk: f.name === "id" ? 1 : 0,
       }));
 
-      const foreignKeys = relations.map((r, i) => ({
-        id: i,
-        seq: 0,
-        table: r.to_name,
-        from: r.label || r.to_name.toLowerCase() + "_id",
-        to: "id",
-      }));
+      // Only belongs-to (cardinality "1") relations produce an FK on this entity
+      const belongsTo = relations.filter(r => r.cardinality === "1");
+      const fieldNames = new Set(fields.map(f => f.name));
+      const foreignKeys = belongsTo.map((r, i) => {
+        // Find the actual FK column: try label_id, then to_name_id
+        const candidates = [
+          r.label + "_id",
+          r.to_name.toLowerCase() + "_id",
+          r.label,
+        ];
+        const from = candidates.find(c => fieldNames.has(c)) ?? r.label + "_id";
+        return { id: i, seq: 0, table: r.to_name, from, to: "id" };
+      });
 
       return { table: entity.name, columns, foreignKeys };
     });
-  } finally {
-    db.close();
-  }
+  });
 }
 
-if (import.meta.main) {
-  const diagrams = await etl();
-  for (const [name, svg] of Object.entries(diagrams)) {
-    console.log(`--- ${name} ---`);
-    console.log(svg.substring(0, 200) + "...");
-  }
-}

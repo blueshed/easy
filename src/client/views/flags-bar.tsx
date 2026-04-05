@@ -1,6 +1,6 @@
 import { signal, effect } from "@blueshed/railroad";
-import { icon } from "./icon";
-import type { Flag } from "./graph-api";
+import { icon } from "../icon";
+import type { Flag } from "../graph-api";
 
 const flags = signal<Flag[]>([]);
 

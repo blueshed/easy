@@ -15,30 +15,44 @@ export function viewport(svgEl: SVGSVGElement): ViewportControls {
     svgEl.setAttribute("viewBox", `${panX} ${panY} ${w} ${h}`);
   }
 
-  // drag-to-pan
-  let dragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
+  // drag-to-pan (only captures after movement threshold, so clicks pass through)
+  let pending = false, dragging = false;
+  let dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
+  let pendingPointerId = -1;
+  const DRAG_THRESHOLD = 4;
 
   svgEl.addEventListener("pointerdown", (e) => {
-    dragging = true;
+    pending = true;
+    dragging = false;
     dragStartX = e.clientX;
     dragStartY = e.clientY;
     panStartX = panX;
     panStartY = panY;
-    svgEl.style.cursor = "grabbing";
-    svgEl.setPointerCapture(e.pointerId);
+    pendingPointerId = e.pointerId;
   });
 
   svgEl.addEventListener("pointermove", (e) => {
+    if (!pending && !dragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    if (pending && !dragging) {
+      if (Math.abs(dx) + Math.abs(dy) < DRAG_THRESHOLD) return;
+      dragging = true;
+      pending = false;
+      svgEl.style.cursor = "grabbing";
+      svgEl.setPointerCapture(pendingPointerId);
+    }
     if (!dragging) return;
     const rect = svgEl.getBoundingClientRect();
     const scaleX = (naturalW / zoom) / rect.width;
     const scaleY = (naturalH / zoom) / rect.height;
-    panX = panStartX - (e.clientX - dragStartX) * scaleX;
-    panY = panStartY - (e.clientY - dragStartY) * scaleY;
+    panX = panStartX - dx * scaleX;
+    panY = panStartY - dy * scaleY;
     applyView();
   });
 
   svgEl.addEventListener("pointerup", () => {
+    pending = false;
     dragging = false;
     svgEl.style.cursor = "";
   });

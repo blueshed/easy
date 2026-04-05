@@ -1,5 +1,7 @@
 import { signal, effect } from "@blueshed/railroad";
 import { route, navigate } from "@blueshed/railroad/routes";
+import { toast } from "../toast";
+import { EmptyState } from "../empty-state";
 
 interface ChecklistItem {
   name: string; description: string;
@@ -18,33 +20,43 @@ interface CheckDetail {
 const checklists = signal<ChecklistItem[]>([]);
 const detail = signal<CheckDetail | null>(null);
 const revision = signal(0);
-const checkRoute = route<{ name: string }>("/checklists/:name");
+const checkRoute = route<{ "*": string }>("/checklists/*");
 
 // Fetch detail when route or data revision changes
 effect(() => {
   revision.get();
   const match = checkRoute.get();
-  if (match) {
+  if (!match) return; // not on checklists tab
+  const name = match["*"];
+  if (name) {
     detail.set(null);
-    fetch(`/api/checklists/${encodeURIComponent(match.name)}`)
-      .then((r) => r.json())
+    fetch(`/api/checklists/${encodeURIComponent(name)}`)
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((d) => detail.set(d))
-      .catch(() => {});
+      .catch(() => {
+        toast(`Checklist "${name}" not found`);
+        const list = checklists.peek();
+        if (list.length) navigate(`/checklists/${list[0].name}`);
+      });
   } else {
     detail.set(null);
+    const list = checklists.peek();
+    if (list.length) navigate(`/checklists/${list[0].name}`);
   }
 });
 
 function render(container: HTMLDivElement) {
   container.innerHTML = "";
   const list = checklists.get();
-  const sel = checkRoute.get()?.name ?? "";
+  const sel = checkRoute.get()?.["*"] ?? "";
   const det = detail.get();
 
-  const sidebar = <div class="list-sidebar" /> as HTMLDivElement;
   if (!list.length) {
-    sidebar.appendChild(<p class="list-empty">no checklists</p>);
+    container.appendChild(EmptyState("No checklists", "bun model save checklist '{\"name\":\"...\",\"checks\":[{\"actor\":\"...\",\"method\":\"...\"}]}'"));
+    return;
   }
+
+  const sidebar = <div class="list-sidebar" /> as HTMLDivElement;
   for (const cl of list) {
     const cls = "list-item" + (cl.name === sel ? " active" : "");
     const pct = cl.total > 0 ? Math.round((cl.done / cl.total) * 100) : 0;

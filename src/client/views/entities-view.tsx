@@ -1,7 +1,9 @@
 import { signal, effect } from "@blueshed/railroad";
 import { route, navigate } from "@blueshed/railroad/routes";
 import { SchemaView } from "./schema-view";
-import { EntityDiagram } from "./entity-diagram";
+import { EntityDiagram } from "../entity-diagram";
+import { toast } from "../toast";
+import { EmptyState } from "../empty-state";
 
 interface EntityListItem { name: string }
 
@@ -33,9 +35,12 @@ effect(() => {
   if (match) {
     detail.set(null);
     fetch(`/api/entities/${encodeURIComponent(match.name)}`)
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((d) => detail.set(d))
-      .catch(() => {});
+      .catch(() => {
+        toast(`Entity "${match.name}" not found`);
+        navigate("/entities");
+      });
   } else {
     detail.set(null);
   }
@@ -47,16 +52,17 @@ function render(container: HTMLDivElement) {
   const sel = entityRoute.get()?.name ?? "";
   const det = detail.get();
 
-  const sidebar = <div class="list-sidebar" /> as HTMLDivElement;
   if (!list.length) {
-    sidebar.appendChild(<p class="list-empty">no entities</p>);
-  } else {
-    sidebar.appendChild(
-      <div class={"list-item overview-item" + (!sel ? " active" : "")} onclick={() => navigate("/entities")}>
-        <span class="list-item-name">All Entities</span>
-      </div>
-    );
+    container.appendChild(EmptyState("No entities", "bun model save entity '{\"name\":\"...\",\"fields\":[{\"name\":\"id\",\"type\":\"number\"}]}'"));
+    return;
   }
+
+  const sidebar = <div class="list-sidebar" /> as HTMLDivElement;
+  sidebar.appendChild(
+    <div class={"list-item overview-item" + (!sel ? " active" : "")} onclick={() => navigate("/entities")}>
+      <span class="list-item-name">All Entities</span>
+    </div>
+  );
   for (const e of list) {
     const cls = "list-item" + (e.name === sel ? " active" : "");
     sidebar.appendChild(
@@ -79,15 +85,6 @@ function render(container: HTMLDivElement) {
     const diagramEl = <div class="detail-diagram" /> as HTMLDivElement;
     diagramEl.appendChild(EntityDiagram(det));
     pane.appendChild(diagramEl);
-
-    if (det.fields?.length) {
-      pane.appendChild(<h4 class="section-heading">Fields</h4>);
-      const table = <table class="fields-table" /> as HTMLTableElement;
-      for (const f of det.fields) {
-        table.appendChild(<tr><td class="field-name">{f.name}</td><td class="field-type">{f.type}</td></tr>);
-      }
-      pane.appendChild(table);
-    }
 
     if (det.documents?.length) {
       pane.appendChild(<h4 class="section-heading">Documents</h4>);

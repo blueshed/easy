@@ -1,13 +1,13 @@
 import { icon } from "./icon";
 
-export type View = "stories" | "documents" | "entities" | "checklists" | "reference" | "graph" | "memories";
+export type View = "stories" | "usecases" | "documents" | "entities" | "checklists" | "reference" | "graph" | "memories";
 
 export const viewConfigs: { name: View; icon: string; title: string; hasViewport: boolean }[] = [
   { name: "stories", icon: "book", title: "Stories", hasViewport: false },
+  { name: "usecases", icon: "users", title: "Use Cases", hasViewport: true },
   { name: "documents", icon: "file-text", title: "Documents", hasViewport: false },
   { name: "entities", icon: "box", title: "Entities", hasViewport: false },
   { name: "checklists", icon: "check-square", title: "Checklists", hasViewport: false },
-  { name: "reference", icon: "help-circle", title: "Reference", hasViewport: false },
 ];
 
 export const devConfigs: { name: View; icon: string; title: string; hasViewport: boolean }[] = [
@@ -15,12 +15,15 @@ export const devConfigs: { name: View; icon: string; title: string; hasViewport:
   { name: "memories", icon: "book-open", title: "Memories", hasViewport: false },
 ];
 
+export const bottomConfigs: { name: View; icon: string; title: string; hasViewport: boolean }[] = [
+  { name: "reference", icon: "help-circle", title: "Reference", hasViewport: false },
+];
+
 type Actions = {
   setView: (v: View) => void;
   zoomIn: () => void;
   zoomOut: () => void;
   fitToView: () => void;
-  about: () => void;
 };
 
 export function Toolbar(actions: Actions) {
@@ -49,10 +52,10 @@ export function Toolbar(actions: Actions) {
 
   const domainBtns = viewConfigs.map((v) => makeBtn(v));
   const devBtns = devConfigs.map((v) => makeBtn(v));
+  const bottomBtns = bottomConfigs.map((v) => makeBtn(v));
 
-  const allConfigs = [...viewConfigs, ...devConfigs];
+  const allConfigs = [...viewConfigs, ...devConfigs, ...bottomConfigs];
 
-  /** Called by app to sync active state with the current route. */
   function setActive(name: View) {
     for (const [n, b] of viewBtns) b.classList.toggle("active", n === name);
     const cfg = allConfigs.find((c) => c.name === name);
@@ -70,7 +73,7 @@ export function Toolbar(actions: Actions) {
         {zoomOutBtn}
         {fitBtn}
         <div class="spacer" />
-        {btn("info", "About", actions.about)}
+        {...bottomBtns}
       </div>
     ),
     setActive,

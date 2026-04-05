@@ -1,4 +1,5 @@
 import { signal, effect } from "@blueshed/railroad";
+import { EmptyState } from "../empty-state";
 
 interface Story {
   id: number;
@@ -23,10 +24,23 @@ function render(container: HTMLDivElement) {
   const list = stories.get();
   const meta = metadata.get();
 
+  // Metadata first — acts as intro
+  const metaKeys = Object.keys(meta);
+  if (metaKeys.length) {
+    const grid = <div class="metadata-grid" /> as HTMLDivElement;
+    for (const [key, value] of Object.entries(meta)) {
+      grid.appendChild(
+        <div class="metadata-item">
+          <dt class="metadata-key">{key}</dt>
+          <dd class="metadata-value">{value}</dd>
+        </div>
+      );
+    }
+    container.appendChild(grid);
+  }
+
   if (!list.length) {
-    container.appendChild(
-      <p class="list-empty">no stories — bun model save story '{"{"}"actor":"...","action":"..."{"}"}'</p>
-    );
+    container.appendChild(EmptyState("No stories", "bun model save story '{\"actor\":\"...\",\"action\":\"...\"}'"));
     return;
   }
 
@@ -58,21 +72,6 @@ function render(container: HTMLDivElement) {
       card.appendChild(linksEl);
     }
     container.appendChild(card);
-  }
-
-  const metaKeys = Object.keys(meta);
-  if (metaKeys.length) {
-    container.appendChild(<h3 class="section-heading">Metadata</h3>);
-    const grid = <div class="metadata-grid" /> as HTMLDivElement;
-    for (const [key, value] of Object.entries(meta)) {
-      grid.appendChild(
-        <div class="metadata-item">
-          <dt class="metadata-key">{key}</dt>
-          <dd class="metadata-value">{value}</dd>
-        </div>
-      );
-    }
-    container.appendChild(grid);
   }
 }
 

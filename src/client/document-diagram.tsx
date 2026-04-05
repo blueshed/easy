@@ -53,8 +53,9 @@ export function DocumentDiagram(doc: {
   const nodes: SVGElement[] = [];
   let maxX = 0, maxY = 0;
 
-  function addNode(pos: Pos, label: string, sub: string | undefined, fill: string, stroke: string, text: string) {
-    const g = el("g", { transform: `translate(${pos.x},${pos.y})` });
+  function addNode(pos: Pos, label: string, sub: string | undefined, fill: string, stroke: string, text: string, entityName?: string) {
+    const g = el("g", { transform: `translate(${pos.x},${pos.y})`, cursor: entityName ? "pointer" : "default" });
+    if (entityName) (g as any).addEventListener("click", () => { location.hash = `/entities/${entityName}`; });
     g.appendChild(el("rect", { width: NODE_W, height: NODE_H, rx: 6, fill, stroke, "stroke-width": 0.5 }));
     g.appendChild(el("text", {
       x: NODE_W / 2, y: sub ? 17 : 25, fill: text,
@@ -105,7 +106,7 @@ export function DocumentDiagram(doc: {
       const suffix = exp.type === "has-many" ? " []" : exp.type === "shallow" ? " *" : "";
 
       addEdge(parentPos, pos, `${exp.name} (${exp.type})`, exp.type === "shallow");
-      addNode(pos, exp.entity + suffix, exp.name, th.expFill, th.expStroke, th.expText);
+      addNode(pos, exp.entity + suffix, exp.name, th.expFill, th.expStroke, th.expText, exp.entity);
 
       if (exp.children.length) layoutExps(exp.children, depth + 1, y, pos);
       y += childH + GAP_Y;
@@ -118,7 +119,7 @@ export function DocumentDiagram(doc: {
 
   addNode(docPos, doc.name, flags || undefined, th.docFill, th.docStroke, th.docText);
   addEdge(docPos, rootPos, "root", false);
-  addNode(rootPos, doc.entity, undefined, th.entFill, th.entStroke, th.entText);
+  addNode(rootPos, doc.entity, undefined, th.entFill, th.entStroke, th.entText, doc.entity);
 
   if (exps.length) layoutExps(exps, 2, PAD, rootPos);
 

@@ -28,13 +28,7 @@ export function renderGraph(svg: SVGSVGElement, graph: Graph): RenderResult {
   defs.appendChild(el("pattern", { id: "grid", width: 24, height: 24, patternUnits: "userSpaceOnUse" },
     el("circle", { cx: 0.5, cy: 0.5, r: 0.5, fill: t.gridDot })));
 
-  if (!tasks.length) {
-    svg.appendChild(
-      el("text", { x: PAD, y: PAD + 20, fill: t.emptyText, "font-family": "ui-monospace, monospace", "font-size": 13 },
-        "no tasks \u2014 bun model save task '{\"name\":\"...\",\"description\":\"...\"}'")
-    );
-    return { width: 500, height: 80 };
-  }
+  if (!tasks.length) return { width: 0, height: 0 };
 
   // layout + bounds
   const positions = layout(tasks, deps);

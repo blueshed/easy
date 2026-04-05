@@ -1,6 +1,8 @@
 import { signal, effect } from "@blueshed/railroad";
 import { route, navigate } from "@blueshed/railroad/routes";
-import { DocumentDiagram, type ExpansionNode } from "./document-diagram";
+import { DocumentDiagram, type ExpansionNode } from "../document-diagram";
+import { toast } from "../toast";
+import { EmptyState } from "../empty-state";
 
 interface DocListItem {
   name: string; entity: string; collection: boolean;
@@ -26,33 +28,43 @@ interface DocDetail {
 const documents = signal<DocListItem[]>([]);
 const detail = signal<DocDetail | null>(null);
 const revision = signal(0);
-const docRoute = route<{ name: string }>("/documents/:name");
+const docRoute = route<{ "*": string }>("/documents/*");
 
 // Fetch detail when route or data revision changes
 effect(() => {
   revision.get();
   const match = docRoute.get();
-  if (match) {
+  if (!match) return; // not on documents tab
+  const name = match["*"];
+  if (name) {
     detail.set(null);
-    fetch(`/api/documents/${encodeURIComponent(match.name)}`)
-      .then((r) => r.json())
+    fetch(`/api/documents/${encodeURIComponent(name)}`)
+      .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
       .then((d) => detail.set(d))
-      .catch(() => {});
+      .catch(() => {
+        toast(`Document "${name}" not found`);
+        const list = documents.peek();
+        if (list.length) navigate(`/documents/${list[0].name}`);
+      });
   } else {
     detail.set(null);
+    const list = documents.peek();
+    if (list.length) navigate(`/documents/${list[0].name}`);
   }
 });
 
 function render(container: HTMLDivElement) {
   container.innerHTML = "";
   const docs = documents.get();
-  const sel = docRoute.get()?.name ?? "";
+  const sel = docRoute.get()?.["*"] ?? "";
   const det = detail.get();
 
-  const sidebar = <div class="list-sidebar" /> as HTMLDivElement;
   if (!docs.length) {
-    sidebar.appendChild(<p class="list-empty">no documents</p>);
+    container.appendChild(EmptyState("No documents", "bun model save document '{\"name\":\"...\",\"entity\":\"...\"}'"));
+    return;
   }
+
+  const sidebar = <div class="list-sidebar" /> as HTMLDivElement;
   for (const d of docs) {
     const cls = "list-item" + (d.name === sel ? " active" : "");
     const item = <div class={cls} onclick={() => navigate(`/documents/${d.name}`)} /> as HTMLDivElement;
@@ -140,11 +152,7 @@ export function DocumentsView() {
 export function reloadDocuments() {
   fetch("/api/documents").then((r) => r.json()).catch(() => []).then((docs) => {
     documents.set(docs);
-    if (docRoute.peek()) {
-      revision.set(revision.peek() + 1);
-    } else if (docs.length && location.hash.startsWith("#/documents")) {
-      navigate(`/documents/${docs[0].name}`);
-    }
+    revision.set(revision.peek() + 1);
   });
 }
 

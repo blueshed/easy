@@ -1,5 +1,5 @@
-import { viewport, type ViewportControls } from "./viewport";
-import { defIcon, useIcon } from "./icon";
+import { viewport, type ViewportControls } from "../viewport";
+import { defIcon, useIcon } from "../icon";
 
 type Column = { cid: number; name: string; type: string; notnull: number; dflt_value: string | null; pk: number };
 type FK = { id: number; seq: number; table: string; from: string; to: string };
@@ -98,7 +98,8 @@ function layoutTables(tables: Table[]): Map<string, { x: number; y: number }> {
 
 function renderTable(t: Table, x: number, y: number, th: SchemaTheme, primary: boolean): SVGElement {
   const h = tableHeight(t);
-  const g = el("g", { transform: `translate(${x},${y})` });
+  const g = el("g", { transform: `translate(${x},${y})`, cursor: "pointer" });
+  (g as any).addEventListener("click", () => { location.hash = `/entities/${t.table}`; });
 
   g.appendChild(el("rect", {
     width: TABLE_W, height: h, rx: 6, x: 1, y: 2,
@@ -232,7 +233,7 @@ export function SchemaView(url = "/api/schema"): { el: SVGSVGElement; controls: 
     renderEdges(svgEl, tables, positions, th);
     for (const t of tables) {
       const pos = positions.get(t.table);
-      if (pos) svgEl.appendChild(renderTable(t, pos.x, pos.y, th, isPrimary(t.table, tables)));
+      if (pos) svgEl.appendChild(renderTable(t, pos.x, pos.y, th, false));
     }
   }
   load();

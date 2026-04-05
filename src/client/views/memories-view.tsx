@@ -1,4 +1,5 @@
 import { signal, effect } from "@blueshed/railroad";
+import { EmptyState } from "../empty-state";
 
 type Memory = { id: number; tag: string; content: string; created_at: string; updated_at: string };
 
@@ -9,9 +10,7 @@ function render(container: HTMLDivElement) {
   container.innerHTML = "";
 
   if (!mems.length) {
-    container.appendChild(
-      <p class="memories-empty">no memories — bun model save memory '{"{"}"tag":"...","content":"..."{"}"}'</p>
-    );
+    container.appendChild(EmptyState("No memories", "bun model save memory '{\"tag\":\"...\",\"content\":\"...\"}'"));
     return;
   }
 

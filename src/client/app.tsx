@@ -1,18 +1,18 @@
 import { effect } from "@blueshed/railroad";
 import { route, navigate } from "@blueshed/railroad/routes";
-import { GraphView } from "./graph-view";
-import { MemoriesView, reloadMemories } from "./memories-view";
-import { StoriesView, reloadStories } from "./stories-view";
-import { DocumentsView, reloadDocuments } from "./documents-view";
-import { EntitiesView, reloadEntities } from "./entities-view";
-import { ChecklistsView, reloadChecklists } from "./checklists-view";
-import { ReferenceView, reloadReference } from "./reference-view";
-import { Toolbar, type View, viewConfigs, devConfigs } from "./toolbar";
-import { FlagsBar, updateFlags } from "./flags-bar";
-import { showAbout } from "./about-dialog";
+import { GraphView } from "./views/graph-view";
+import { MemoriesView, reloadMemories } from "./views/memories-view";
+import { StoriesView, reloadStories } from "./views/stories-view";
+import { UseCasesView, reloadUseCases } from "./views/usecases-view";
+import { DocumentsView, reloadDocuments } from "./views/documents-view";
+import { EntitiesView, reloadEntities } from "./views/entities-view";
+import { ChecklistsView, reloadChecklists } from "./views/checklists-view";
+import { ReferenceView, reloadReference } from "./views/reference-view";
+import { Toolbar, type View } from "./toolbar";
+import { FlagsBar, updateFlags } from "./views/flags-bar";
 import type { ViewportControls } from "./viewport";
 
-const { el: graph, controls: graphControls, onUpdate, reload: reloadGraph } = GraphView();
+const { el: graph, empty: graphEmpty, controls: graphControls, onUpdate, reload: reloadGraph } = GraphView();
 
 const viewControls = new Map<View, ViewportControls>();
 viewControls.set("graph", graphControls);
@@ -28,7 +28,7 @@ const schemaReloaders: Record<string, (() => void)[]> = {
   publish:      [reloadEntities, reloadDocuments],
   notification: [reloadDocuments],
   permission:   [reloadEntities, reloadDocuments],
-  story:        [reloadStories],
+  story:        [reloadStories, reloadUseCases],
   document:     [reloadDocuments],
   expansion:    [reloadDocuments],
   checklist:    [reloadChecklists],
@@ -42,6 +42,7 @@ const schemaReloaders: Record<string, (() => void)[]> = {
 function reloadAll() {
   reloadGraph();
   reloadStories();
+  reloadUseCases();
   reloadDocuments();
   reloadEntities();
   reloadChecklists();
@@ -73,6 +74,7 @@ connect();
 
 // route signals
 const isStories = route("/");
+const isUseCases = route("/usecases");
 const isDocuments = route("/documents/*");
 const isEntities = route("/entities/*");
 const isChecklists = route("/checklists/*");
@@ -82,6 +84,7 @@ const isMemories = route("/memories");
 
 const routeMap: [ReturnType<typeof route>, View][] = [
   [isStories, "stories"],
+  [isUseCases, "usecases"],
   [isDocuments, "documents"],
   [isEntities, "entities"],
   [isChecklists, "checklists"],
@@ -95,6 +98,13 @@ const views = new Map<View, HTMLElement>();
 const storiesContainer = <div class="content-container" /> as HTMLDivElement;
 storiesContainer.appendChild(StoriesView());
 views.set("stories", storiesContainer);
+
+const { el: usecasesSvg, empty: usecasesEmpty, controls: usecasesControls } = UseCasesView();
+viewControls.set("usecases", usecasesControls);
+const usecasesContainer = <div class="graph-container" /> as HTMLDivElement;
+usecasesContainer.appendChild(usecasesSvg);
+usecasesContainer.appendChild(usecasesEmpty);
+views.set("usecases", usecasesContainer);
 
 const documentsContainer = <div class="content-container" /> as HTMLDivElement;
 documentsContainer.appendChild(DocumentsView());
@@ -114,6 +124,7 @@ views.set("reference", referenceContainer);
 
 const graphContainer = <div class="graph-container" /> as HTMLDivElement;
 graphContainer.appendChild(graph);
+graphContainer.appendChild(graphEmpty);
 graphContainer.appendChild(<FlagsBar />);
 views.set("graph", graphContainer);
 
@@ -130,7 +141,6 @@ const toolbar = Toolbar({
   zoomIn: () => activeControls.zoomIn(),
   zoomOut: () => activeControls.zoomOut(),
   fitToView: () => activeControls.fitToView(),
-  about: showAbout,
 });
 
 effect(() => {

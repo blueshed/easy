@@ -270,12 +270,14 @@ body { background: var(--bg); }
   flex: 1;
   overflow: auto;
   padding: 24px 32px;
+  position: relative;
 }
 
 .memories-container {
   flex: 1;
   overflow: auto;
   padding: 24px 32px;
+  position: relative;
 }
 
 .schema-container {
@@ -679,7 +681,9 @@ body { background: var(--bg); }
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 4px 16px;
-  max-width: 400px;
+  padding-bottom: 16px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
 }
 
 .metadata-item { display: contents; }
@@ -701,7 +705,6 @@ body { background: var(--bg); }
 /* --- Reference / Markdown --- */
 
 .reference-view {
-  max-width: 720px;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 14px;
   color: var(--text-primary);
@@ -763,4 +766,66 @@ body { background: var(--bg); }
   background: var(--surface);
   font-weight: 600;
   text-align: left;
+}
+
+/* --- Toast --- */
+
+/* --- Empty state --- */
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.empty-title {
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.empty-hint {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 12px;
+  user-select: all;
+}
+
+.toast-container {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 8px 20px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
 }

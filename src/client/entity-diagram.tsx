@@ -161,7 +161,9 @@ export function EntityDiagram(data: EntityData): SVGSVGElement {
     // Draw related entity boxes on top
     for (let i = 0; i < uniqueEntities.length; i++) {
       const ry = relStartY + i * (REL_H + GAP_Y);
-      const rg = el("g", { transform: `translate(${relX},${ry})` });
+      const entityName = uniqueEntities[i];
+      const rg = el("g", { transform: `translate(${relX},${ry})`, cursor: "pointer" });
+      (rg as any).addEventListener("click", () => { location.hash = `/entities/${entityName}`; });
       rg.appendChild(el("rect", {
         width: REL_W, height: REL_H, rx: 6,
         fill: th.relFill, stroke: th.relStroke, "stroke-width": 0.5,

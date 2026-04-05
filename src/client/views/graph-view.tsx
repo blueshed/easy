@@ -1,8 +1,9 @@
 import { signal, effect } from "@blueshed/railroad";
-import type { Graph } from "./graph-api";
-import { SVG_NS } from "./graph/svg";
-import { renderGraph } from "./graph/render";
-import { viewport } from "./viewport";
+import type { Graph } from "../graph-api";
+import { SVG_NS } from "../graph/svg";
+import { renderGraph } from "../graph/render";
+import { viewport } from "../viewport";
+import { EmptyState } from "../empty-state";
 
 export function GraphView() {
   const graph = signal<Graph>({ tasks: [], deps: [], flags: [] });
@@ -39,6 +40,8 @@ export function GraphView() {
     </svg>
   ) as SVGSVGElement;
 
+  const empty = EmptyState("No tasks", "bun model save task '{\"name\":\"...\",\"description\":\"...\"}'");
+
   const controls = viewport(svgEl);
 
   const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -47,14 +50,17 @@ export function GraphView() {
   effect(() => {
     const g = graph.get();
     const { width, height } = renderGraph(svgEl, g);
-    if (g.tasks.length) controls.setSize(width, height);
+    const hasData = g.tasks.length > 0;
+    svgEl.style.display = hasData ? "block" : "none";
+    empty.style.display = hasData ? "none" : "";
+    if (hasData) controls.setSize(width, height);
   });
 
-  // initial load
   fetch("/api/tasks").then((r) => r.json()).then(update).catch(() => {});
 
   return {
     el: svgEl,
+    empty,
     controls,
     onUpdate(fn: (g: Graph) => void) { listeners.push(fn); },
     reload() {
