@@ -52,6 +52,14 @@ export function list(db: Database, schema?: string): void {
 
 function listAll(db: Database) {
   listEntities(db);
+  console.log("");
+  listStories(db);
+  console.log("");
+  listDocuments(db);
+  console.log("");
+  listChecks(db);
+  console.log("");
+  listMetadata(db);
 }
 
 function listEntities(db: Database) {
@@ -346,7 +354,7 @@ export function exportSpec(db: Database): void {
           const pubs = db.query("SELECT property FROM publishes WHERE method_id = ?").all(m.id) as P[];
           for (const p of pubs) out.push(`  - publishes \`${p.property}\``);
           const notifs = db.query("SELECT channel, recipients, payload FROM notifications WHERE method_id = ?").all(m.id) as N[];
-          for (const n of notifs) out.push(`  - notifies \`${n.channel}\` → ${n.recipients}`);
+          for (const n of notifs) out.push(`  - notifies \`${n.channel}\` → ${n.recipients}${n.payload && n.payload !== "{}" ? ` (payload: \`${n.payload}\`)` : ""}`);
           const perms = db.query("SELECT path, description FROM method_permissions WHERE method_id = ?").all(m.id) as Perm[];
           for (const p of perms) out.push(`  - permission: \`${p.path}\`${p.description ? ` — ${p.description}` : ""}`);
         }
@@ -364,7 +372,7 @@ export function exportSpec(db: Database): void {
       out.push("## Relations\n");
       for (const r of rels) {
         const card = r.cardinality === "1" ? "belongs-to" : "has-many";
-        out.push(`- **${r.from_name}** → **${r.to_name}**${r.label ? ` (${r.label})` : ""} [${card}]`);
+        out.push(`- **${r.from_name}** → **${r.to_name}**${r.label ? ` (${r.label})` : ""} [${card}, ${r.cardinality}]`);
       }
       out.push("");
     }

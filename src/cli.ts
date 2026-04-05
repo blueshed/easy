@@ -5,8 +5,10 @@ import { list, get, exportSpec, doctor } from "./query";
 import { parse as parseYaml } from "yaml";
 import { readFileSync } from "fs";
 
+const SITE_PORT = Number(process.env.PORT ?? 8080);
+
 function triggerReload() {
-  fetch("http://localhost:8080/api/internal/reload", { method: "POST" }).catch(() => { });
+  fetch(`http://localhost:${SITE_PORT}/api/internal/reload`, { method: "POST" }).catch(() => { });
 }
 
 const db = openDb();
@@ -40,7 +42,11 @@ function dispatch(command: string, args: string[]): void {
         console.error(`Unknown schema '${schemaName}'. Known: ${publicSchemas().join(", ")}`);
         throw new Error("fail");
       }
-      const obj = JSON.parse(jsonStr);
+      let obj: Record<string, unknown>;
+      try { obj = JSON.parse(jsonStr); } catch (e: any) {
+        console.error(`Invalid JSON: ${e.message}`);
+        throw new Error("fail");
+      }
       const id = save(db, schemaName, obj);
       console.log(`Saved ${schemaName} (id: ${id})`);
       triggerReload();
@@ -57,7 +63,11 @@ function dispatch(command: string, args: string[]): void {
         console.error(`Unknown schema '${schemaName}'. Known: ${publicSchemas().join(", ")}`);
         throw new Error("fail");
       }
-      const obj = JSON.parse(jsonStr);
+      let obj: Record<string, unknown>;
+      try { obj = JSON.parse(jsonStr); } catch (e: any) {
+        console.error(`Invalid JSON: ${e.message}`);
+        throw new Error("fail");
+      }
       del(db, schemaName, obj);
       console.log(`Deleted ${schemaName}`);
       triggerReload();
@@ -76,12 +86,21 @@ function dispatch(command: string, args: string[]): void {
         throw new Error("fail");
       }
       const ext = file.split(".").pop();
-      const content = readFileSync(file, "utf-8");
+      let content: string;
+      try { content = readFileSync(file, "utf-8"); } catch (e: any) {
+        console.error(`Cannot read file '${file}': ${e.message}`);
+        throw new Error("fail");
+      }
       let data: Record<string, any>;
-      if (ext === "yml" || ext === "yaml") {
-        data = parseYaml(content);
-      } else {
-        data = JSON.parse(content);
+      try {
+        if (ext === "yml" || ext === "yaml") {
+          data = parseYaml(content);
+        } else {
+          data = JSON.parse(content);
+        }
+      } catch (e: any) {
+        console.error(`Invalid ${ext === "yml" || ext === "yaml" ? "YAML" : "JSON"}: ${e.message}`);
+        throw new Error("fail");
       }
 
       let imported = 0;
@@ -177,26 +196,32 @@ function usage() {
 if (cmd === "batch") {
   const input = await Bun.stdin.text();
   const lines = input.trim().split("\n").filter(Boolean);
-  let ok = 0, fail = 0;
-  for (const line of lines) {
-    try {
-      const arr = JSON.parse(line) as [string, string, unknown];
-      const [command, schemaName, obj] = arr;
-      if (command === "save") {
-        save(db, schemaName, obj as Record<string, unknown>);
-      } else if (command === "delete") {
-        del(db, schemaName, obj as Record<string, unknown>);
-      } else {
-        throw new Error(`Batch only supports save/delete, got '${command}'`);
+  let count = 0;
+  try {
+    db.transaction(() => {
+      for (const line of lines) {
+        const arr = JSON.parse(line) as [string, string, unknown];
+        const [command, schemaName, obj] = arr;
+        if (!SCHEMAS[schemaName] || schemaName.startsWith("_")) {
+          throw new Error(`Unknown or internal schema '${schemaName}'`);
+        }
+        if (command === "save") {
+          save(db, schemaName, obj as Record<string, unknown>);
+        } else if (command === "delete") {
+          del(db, schemaName, obj as Record<string, unknown>);
+        } else {
+          throw new Error(`Batch only supports save/delete, got '${command}'`);
+        }
+        count++;
       }
-      ok++;
-    } catch (e: any) {
-      console.error(`FAIL: ${line}\n  ${e.message}`);
-      fail++;
-    }
+    })();
+    console.log(`Batch: ${count} ok, ${lines.length} total`);
+    triggerReload();
+  } catch (e: any) {
+    console.error(`Batch failed at item ${count + 1}/${lines.length}: ${e.message}`);
+    console.error("Transaction rolled back — no changes applied.");
+    process.exit(1);
   }
-  console.log(`\nBatch: ${ok} ok, ${fail} failed, ${lines.length} total`);
-  if (ok > 0) triggerReload();
 } else if (!cmd) {
   usage();
 } else {
