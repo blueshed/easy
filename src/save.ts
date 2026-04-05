@@ -1,4 +1,4 @@
-import type { Database } from "bun:sqlite";
+import type { Database, SQLQueryBindings } from "bun:sqlite";
 import { SCHEMAS, resolveFk, type SchemaDefinition, type ChildDef } from "./schemas";
 import { validate } from "./validate";
 
@@ -79,7 +79,7 @@ function doSave(
   }
 
   // 2. Build column values (scalars only)
-  const colValues: Record<string, unknown> = {};
+  const colValues: Record<string, SQLQueryBindings> = {};
   for (const [jsonKey, sqlCol] of Object.entries(schema.columns)) {
     if (jsonKey in obj) {
       let val = obj[jsonKey];
@@ -91,7 +91,7 @@ function doSave(
       if (sqlCol === "args" && typeof val !== "string") {
         val = JSON.stringify(val);
       }
-      colValues[sqlCol] = val;
+      colValues[sqlCol] = val as SQLQueryBindings;
     }
   }
 
@@ -116,7 +116,7 @@ function doSave(
 
   // 4. Build natural key WHERE clause
   const whereColumns: string[] = [];
-  const whereValues: unknown[] = [];
+  const whereValues: SQLQueryBindings[] = [];
   for (const nk of schema.naturalKey) {
     // Check if this natural key field is an FK
     const fkRule = schema.fks.find((f) => f.field === nk);
@@ -127,7 +127,7 @@ function doSave(
       whereColumns.push(parentFkColumn);
       whereValues.push(parentId);
     } else if (schema.columns[nk]) {
-      const val = colValues[schema.columns[nk]] ?? schema.defaults?.[nk];
+      const val = colValues[schema.columns[nk]] ?? schema.defaults?.[nk] as SQLQueryBindings;
       whereColumns.push(schema.columns[nk]);
       whereValues.push(val);
     }
@@ -179,14 +179,14 @@ function doSave(
     rowId = existing.id;
   } else {
     // 6b. INSERT — all provided values + defaults
-    const insertCols: Record<string, unknown> = {};
+    const insertCols: Record<string, SQLQueryBindings> = {};
 
     // Apply defaults first
     if (schema.defaults) {
       for (const [key, defaultVal] of Object.entries(schema.defaults)) {
         const sqlCol = schema.columns[key];
         if (sqlCol && !(sqlCol in colValues)) {
-          let val = defaultVal;
+          let val: SQLQueryBindings = defaultVal as SQLQueryBindings;
           if (schema.booleans?.includes(key)) val = val ? 1 : 0;
           insertCols[sqlCol] = val;
         }
@@ -324,7 +324,7 @@ export function del(db: Database, schemaName: string, obj: Record<string, unknow
 
     // Build WHERE clause from natural key
     const whereColumns: string[] = [];
-    const whereValues: unknown[] = [];
+    const whereValues: SQLQueryBindings[] = [];
     for (const nk of schema.naturalKey) {
       const fkRule = schema.fks.find((f) => f.field === nk);
       if (fkRule && resolved[fkRule.column] !== undefined) {
@@ -332,7 +332,7 @@ export function del(db: Database, schemaName: string, obj: Record<string, unknow
         whereValues.push(resolved[fkRule.column]);
       } else if (schema.columns[nk]) {
         whereColumns.push(schema.columns[nk]);
-        whereValues.push(obj[nk]);
+        whereValues.push(obj[nk] as SQLQueryBindings);
       }
     }
 
