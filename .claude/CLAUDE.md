@@ -14,7 +14,8 @@ Domain modeling tool for applications built on the **simple** template pattern. 
 | `src/etl.ts` | Queries for the site API: entity/document detail, diagrams via PlantUML |
 | `src/site.ts` | Bun HTTP server on port 8080 using parameterized routes (`/api/entities/:name`, etc.) |
 | `.claude/skills/model-app/reference.md` | Full CLI reference documentation (served at `/api/reference` and `#reference`) |
-| `src/index.html` | Single-page app — loads data from `/api/*` endpoints, renders dynamically |
+| `src/app.tsx` | Railroad JSX app — signals, routes, and reactive components |
+| `src/app.html` | HTML shell that loads `app.tsx` |
 | `src/site.css` | Dark theme styles for the site |
 
 ## Key concepts

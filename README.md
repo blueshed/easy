@@ -186,6 +186,6 @@ docker compose exec easy bun model doctor --fix
 | `src/db.ts` | SQLite schema, foreign keys, and `openDb()` helper |
 | `src/etl.ts` | Site API queries and PlantUML diagram generation |
 | `src/site.ts` | Bun HTTP server on port 8080 with parameterized routes |
-| `src/reference.ts` | Structured CLI reference data served to the site |
-| `src/index.html` | Single-page visualization app |
+| `src/app.tsx` | Railroad JSX app — signals, routes, and reactive components |
+| `src/app.html` | HTML shell that loads `app.tsx` |
 | `src/site.css` | Dark theme styles |

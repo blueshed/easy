@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.4
+
+- Bump dependencies: tailwindcss 4.2.2, yaml 2.8.3, bun-types 1.3.11
+- Update docs: replace references to removed `index.html` and `reference.ts` with `app.tsx` / `app.html`
+
 ## 0.5.3
 
 - Fix ChecklistPage: replace `when()` with `effect()` + `replaceChildren()` for same-pattern navigation — `when()` only rebuilds on falsy→truthy transitions, not when data changes while truthy
