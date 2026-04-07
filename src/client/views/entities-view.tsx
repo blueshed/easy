@@ -4,6 +4,8 @@ import { SchemaView } from "./schema-view";
 import { EntityDiagram } from "../entity-diagram";
 import { toast } from "../toast";
 import { EmptyState } from "../empty-state";
+import { USE_PLANTUML } from "../config";
+import { fetchSvg, cleanSvg } from "../plantuml-svg";
 
 interface EntityListItem { name: string }
 
@@ -27,6 +29,10 @@ const entities = signal<EntityListItem[]>([]);
 const detail = signal<EntityDetail | null>(null);
 const revision = signal(0);
 const entityRoute = route<{ name: string }>("/entities/:name");
+
+// Create SchemaView once so viewport controls persist across renders
+const schemaView = SchemaView("/api/domain-schema");
+export const entityControls = schemaView.controls;
 
 // Fetch detail when route or data revision changes
 effect(() => {
@@ -75,15 +81,20 @@ function render(container: HTMLDivElement) {
 
   if (!sel) {
     const pane = <div class="detail-pane schema-overview" /> as HTMLDivElement;
-    const { el: svgEl } = SchemaView("/api/domain-schema");
-    pane.appendChild(svgEl);
+    pane.appendChild(schemaView.el);
     container.appendChild(pane);
   } else if (det) {
     const pane = <div class="detail-pane" /> as HTMLDivElement;
     pane.appendChild(<h3 class="detail-title">{det.name}</h3>);
 
     const diagramEl = <div class="detail-diagram" /> as HTMLDivElement;
-    diagramEl.appendChild(EntityDiagram(det));
+    if (USE_PLANTUML) {
+      fetchSvg(`/diagram/entity/${encodeURIComponent(det.name)}`).then(svg => {
+        diagramEl.appendChild(cleanSvg(svg));
+      });
+    } else {
+      diagramEl.appendChild(EntityDiagram(det));
+    }
     pane.appendChild(diagramEl);
 
     if (det.documents?.length) {
@@ -133,6 +144,7 @@ export function reloadEntities() {
   fetch("/api/entities").then((r) => r.json()).catch(() => []).then((list) => {
     entities.set(list);
     revision.set(revision.peek() + 1);
+    schemaView.reload();
   });
 }
 

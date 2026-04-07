@@ -4,3 +4,6 @@ spec.md
 .DS_Store
 .claude/settings.local.json
 src/*.js
+.env
+model.db.bak
+model.db.bak1

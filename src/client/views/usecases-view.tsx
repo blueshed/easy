@@ -2,6 +2,8 @@ import { signal, effect } from "@blueshed/railroad";
 import { el, SVG_NS } from "../graph/svg";
 import { viewport, type ViewportControls } from "../viewport";
 import { EmptyState } from "../empty-state";
+import { USE_PLANTUML } from "../config";
+import { fetchSvg, prepareSvgContent } from "../plantuml-svg";
 
 interface Story {
   id: number;
@@ -236,8 +238,30 @@ export function UseCasesView(): { el: SVGSVGElement; empty: HTMLElement; control
   const mq = window.matchMedia("(prefers-color-scheme: dark)");
   mq.addEventListener("change", () => stories.set([...stories.peek()]));
 
+  async function loadPlantUml() {
+    const fetched = await fetchSvg("/diagram/usecases.svg");
+    const { g, w, h } = prepareSvgContent(fetched);
+    const hasData = w > 100;
+    svgEl.innerHTML = "";
+    if (hasData) {
+      svgEl.appendChild(g);
+      controls.setSize(w, h);
+    }
+    svgEl.style.display = hasData ? "block" : "none";
+    empty.style.display = hasData ? "none" : "";
+  }
+
   effect(() => {
     const data = stories.get();
+    if (USE_PLANTUML) {
+      // data signal change triggers a PlantUML re-fetch
+      if (data.length > 0) loadPlantUml();
+      else {
+        svgEl.style.display = "none";
+        empty.style.display = "";
+      }
+      return;
+    }
     const { width, height } = renderDiagram(svgEl, data);
     const hasData = data.length > 0;
     svgEl.style.display = hasData ? "block" : "none";

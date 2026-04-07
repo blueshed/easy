@@ -1,5 +1,7 @@
 import { viewport, type ViewportControls } from "../viewport";
 import { defIcon, useIcon } from "../icon";
+import { USE_PLANTUML } from "../config";
+import { fetchSvg, prepareSvgContent } from "../plantuml-svg";
 
 type Column = { cid: number; name: string; type: string; notnull: number; dflt_value: string | null; pk: number };
 type FK = { id: number; seq: number; table: string; from: string; to: string };
@@ -192,7 +194,7 @@ function renderEdges(svgEl: SVGSVGElement, tables: Table[], positions: Map<strin
   }
 }
 
-export function SchemaView(url = "/api/schema"): { el: SVGSVGElement; controls: ViewportControls } {
+export function SchemaView(url = "/api/schema"): { el: SVGSVGElement; controls: ViewportControls; reload: () => void } {
   const svgEl = document.createElementNS(NS, "svg") as SVGSVGElement;
   svgEl.setAttribute("preserveAspectRatio", "xMidYMid meet");
   svgEl.setAttribute("font-family", FONT);
@@ -206,6 +208,16 @@ export function SchemaView(url = "/api/schema"): { el: SVGSVGElement; controls: 
   mq.addEventListener("change", () => load());
 
   async function load() {
+    if (USE_PLANTUML) {
+      const pumlUrl = url === "/api/domain-schema" ? "/diagram/entities.svg" : "/diagram/entities.svg";
+      const fetched = await fetchSvg(pumlUrl);
+      const { g, w, h } = prepareSvgContent(fetched);
+      svgEl.innerHTML = "";
+      svgEl.appendChild(g);
+      controls.setSize(w, h);
+      return;
+    }
+
     const res = await fetch(url);
     const tables: Table[] = await res.json();
     const th = schemaTheme();
@@ -238,5 +250,5 @@ export function SchemaView(url = "/api/schema"): { el: SVGSVGElement; controls: 
   }
   load();
 
-  return { el: svgEl, controls };
+  return { el: svgEl, controls, reload: load };
 }

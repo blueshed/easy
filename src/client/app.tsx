@@ -5,7 +5,7 @@ import { MemoriesView, reloadMemories } from "./views/memories-view";
 import { StoriesView, reloadStories } from "./views/stories-view";
 import { UseCasesView, reloadUseCases } from "./views/usecases-view";
 import { DocumentsView, reloadDocuments } from "./views/documents-view";
-import { EntitiesView, reloadEntities } from "./views/entities-view";
+import { EntitiesView, reloadEntities, entityControls } from "./views/entities-view";
 import { ChecklistsView, reloadChecklists } from "./views/checklists-view";
 import { ReferenceView, reloadReference } from "./views/reference-view";
 import { Toolbar, type View } from "./toolbar";
@@ -16,6 +16,7 @@ const { el: graph, empty: graphEmpty, controls: graphControls, onUpdate, reload:
 
 const viewControls = new Map<View, ViewportControls>();
 viewControls.set("graph", graphControls);
+viewControls.set("entities", entityControls);
 
 let activeControls: ViewportControls = graphControls;
 

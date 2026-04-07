@@ -3,6 +3,8 @@ import { route, navigate } from "@blueshed/railroad/routes";
 import { DocumentDiagram, type ExpansionNode } from "../document-diagram";
 import { toast } from "../toast";
 import { EmptyState } from "../empty-state";
+import { USE_PLANTUML } from "../config";
+import { fetchSvg, cleanSvg } from "../plantuml-svg";
 
 interface DocListItem {
   name: string; entity: string; collection: boolean;
@@ -94,7 +96,13 @@ function render(container: HTMLDivElement) {
     }
 
     const diagramEl = <div class="detail-diagram" /> as HTMLDivElement;
-    diagramEl.appendChild(DocumentDiagram(det));
+    if (USE_PLANTUML) {
+      fetchSvg(`/diagram/doc/${encodeURIComponent(det.name)}`).then(svg => {
+        diagramEl.appendChild(cleanSvg(svg));
+      });
+    } else {
+      diagramEl.appendChild(DocumentDiagram(det));
+    }
     pane.appendChild(diagramEl);
 
     if (det.changedBy?.length) {

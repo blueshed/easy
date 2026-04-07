@@ -3,16 +3,13 @@ services:
     build: .
     ports:
       - "8080:8080"
-    environment:
-      PLANTUML_URL: http://plantuml:8080
+    env_file: .env
     volumes:
       - ./model.db:/app/model.db
-    # Uncomment to enable PlantUML diagram endpoints
-    # depends_on:
-    #   plantuml:
-    #     condition: service_healthy
+    depends_on:
+      plantuml:
+        condition: service_healthy
 
-  # Optional: PlantUML server for legacy diagram endpoints
   plantuml:
     image: plantuml/plantuml-server:jetty
     ports:

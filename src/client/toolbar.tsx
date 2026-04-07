@@ -6,7 +6,7 @@ export const viewConfigs: { name: View; icon: string; title: string; hasViewport
   { name: "stories", icon: "book", title: "Stories", hasViewport: false },
   { name: "usecases", icon: "users", title: "Use Cases", hasViewport: true },
   { name: "documents", icon: "file-text", title: "Documents", hasViewport: false },
-  { name: "entities", icon: "box", title: "Entities", hasViewport: false },
+  { name: "entities", icon: "box", title: "Entities", hasViewport: true },
   { name: "checklists", icon: "check-square", title: "Checklists", hasViewport: false },
 ];
 
