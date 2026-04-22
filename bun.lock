@@ -5,7 +5,7 @@
     "": {
       "name": "modeling",
       "dependencies": {
-        "@blueshed/railroad": "^0.4.0",
+        "@blueshed/railroad": "^0.7.0",
         "bun-plugin-tailwind": "^0.1.2",
         "feather-icons": "^4.29.2",
         "postgres": "^3.4.8",
@@ -20,7 +20,7 @@
     },
   },
   "packages": {
-    "@blueshed/railroad": ["@blueshed/railroad@0.4.0", "", {}, "sha512-OiJt2UmKceKr1WnAhoOyw6cEa2GxkipHbTlSgzF+qeIZZa3PCkrgKAXT5OxQFZ0uX/jj4ygiUCY6HEk18MuN7w=="],
+    "@blueshed/railroad": ["@blueshed/railroad@0.7.0", "", {}, "sha512-/1wZG+JRIdrGSQQDprrhdYuRQ8XHlF2aYZ8DdKO22htUrnULOtfvluPxe3xk6T7ab6hsciwlnVKkDRH1fuJCgw=="],
 
     "@oven/bun-darwin-aarch64": ["@oven/bun-darwin-aarch64@1.3.9", "", { "os": "darwin", "cpu": "arm64" }, "sha512-df7smckMWSUfaT5mzwN9Lfpd3ZGkOqo+vmQ8VV2a32gl14v6uZ/qeeo+1RlANXn8M0uzXPWWCkrKZIWSZUR0qw=="],
 

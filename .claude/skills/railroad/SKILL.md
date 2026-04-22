@@ -3,10 +3,12 @@ name: railroad
 description: "Railroad — micro reactive UI framework for Bun. Use when writing JSX components with signals, routes, when(), list(), or importing @blueshed/railroad."
 ---
 
-Micro reactive UI framework for Bun. ~900 lines, zero dependencies, real DOM.
+Micro reactive UI framework for Bun. Zero dependencies, real DOM.
 
 **Read the source files for full API detail** — each has a JSDoc header:
 `signals.ts` · `jsx.ts` · `routes.ts` · `shared.ts` · `logger.ts`
+
+Pairs with `@blueshed/delta` for document sync (see the `delta-doc` skill).
 
 ## Setup
 
@@ -51,6 +53,11 @@ function SitesLayout() {
   return when(() => detail.get(), () => <SiteDetail />, () => <SitesList />);
 }
 ```
+
+## Also exported (0.7+)
+
+- `key<T>()`, `provide(k, v)`, `inject(k)`, `tryInject(k)` — typed DI container (works server-side too).
+- `createLogger(prefix)`, `setLogLevel`, `loggedRequest` — colored, level-gated console logger.
 
 ## Anti-Patterns
 

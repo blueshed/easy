@@ -88,7 +88,8 @@ Easy's `export` output is consumed by Simple's `/implement` skill. The full pipe
 
 ## Notes
 
-- The model targets the **simple** pattern: atomic events via `pg_notify`, document-scoped fan-out, client-side merge.
+- The model targets the **simple** pattern: atomic events via `pg_notify`, document-scoped fan-out, client-side merge. `@blueshed/delta` is the runtime primitive that implements this pattern (JSON-Patch ops over WebSocket, Postgres or SQLite backend, reactive client signals via Railroad) — see the `delta-doc` skill.
 - Foreign keys are enforced via `PRAGMA foreign_keys = ON` on every connection. Deleting entities/documents/methods also cleans up polymorphic `story_links` at the application level.
 - The `doctor` command reports orphaned references; `doctor --fix` removes them.
 - The detailed CLI reference is in `.claude/skills/model-app/reference.md` and also served on the site at `#reference`.
+- Client uses `@blueshed/railroad` (0.7+) — signals, JSX, hash routes, plus a typed DI container and logger. Easy currently ships its own bespoke WebSocket broadcast (`src/site.ts` + `src/client/app.tsx`); it does NOT yet use `@blueshed/delta` at runtime.

@@ -63,7 +63,7 @@ function generateEntityDiagram(db: Database): string {
     const fields = db.query("SELECT name, type FROM fields WHERE entity_id = ? ORDER BY id").all(e.id) as Field[];
     const methods = db.query("SELECT id, name, args, return_type, auth_required FROM methods WHERE entity_id = ? ORDER BY id").all(e.id) as Method[];
 
-    lines.push(`entity "${e.name}" as ${alias(e.name)} [[#/entity/${e.name}]] {`);
+    lines.push(`entity "${e.name}" as ${alias(e.name)} [[#/entities/${e.name}]] {`);
     for (const f of fields) lines.push(`  ${f.name} : ${f.type}`);
     if (methods.length > 0) {
       lines.push("  --");
@@ -159,7 +159,7 @@ function generateDocumentDiagram(db: Database): string {
     lines.push("");
 
     const rootAlias = `root_${d.id}`;
-    lines.push(`object "${d.entity_name}" as ${rootAlias} [[#/entity/${d.entity_name}]]`);
+    lines.push(`object "${d.entity_name}" as ${rootAlias} [[#/entities/${d.entity_name}]]`);
     lines.push(`${docAlias} --> ${rootAlias} : root`);
     lines.push("");
 
@@ -177,7 +177,7 @@ function generateDocumentDiagram(db: Database): string {
         const a = `exp_${objCounter}`;
         expAliases.set(x.id, a);
         const suffix = x.belongs_to ? "" : x.shallow ? " *" : "[]";
-        lines.push(`object "${x.entity_name}${suffix}" as ${a} [[#/entity/${x.entity_name}]]`);
+        lines.push(`object "${x.entity_name}${suffix}" as ${a} [[#/entities/${x.entity_name}]]`);
         const rel = x.belongs_to ? "belongs-to" : x.shallow ? "shallow" : "has-many";
         const arrow = x.shallow ? "..>" : "-->";
         lines.push(`${parentAlias} ${arrow} ${a} : ${x.name} (${rel})`);
@@ -212,7 +212,7 @@ function generateSingleDocumentDiagram(db: Database, docName: string): string {
   lines.push("");
 
   const rootAlias = `root_${d.id}`;
-  lines.push(`object "${d.entity_name}" as ${rootAlias} [[#/entity/${d.entity_name}]]`);
+  lines.push(`object "${d.entity_name}" as ${rootAlias} [[#/entities/${d.entity_name}]]`);
   lines.push(`${docAlias} --> ${rootAlias} : root`);
   lines.push("");
 
@@ -227,7 +227,7 @@ function generateSingleDocumentDiagram(db: Database, docName: string): string {
       objCounter++;
       const a = `exp_${objCounter}`;
       const suffix = x.belongs_to ? "" : x.shallow ? " *" : "[]";
-      lines.push(`object "${x.entity_name}${suffix}" as ${a} [[#/entity/${x.entity_name}]]`);
+      lines.push(`object "${x.entity_name}${suffix}" as ${a} [[#/entities/${x.entity_name}]]`);
       const rel = x.belongs_to ? "belongs-to" : x.shallow ? "shallow" : "has-many";
       const arrow = x.shallow ? "..>" : "-->";
       lines.push(`${parentAlias} ${arrow} ${a} : ${x.name} (${rel})`);
@@ -249,7 +249,7 @@ function generateSingleEntityDiagram(db: Database, entityName: string): string {
 
   const lines: string[] = ["@startuml", "hide empty methods", ""];
 
-  lines.push(`entity "${entity.name}" as ${alias(entity.name)} [[#/entity/${entity.name}]] {`);
+  lines.push(`entity "${entity.name}" as ${alias(entity.name)} [[#/entities/${entity.name}]] {`);
   for (const f of fields) lines.push(`  ${f.name} : ${f.type}`);
   if (methods.length > 0) {
     lines.push("  --");
@@ -276,7 +276,7 @@ function generateSingleEntityDiagram(db: Database, entityName: string): string {
   }
 
   for (const name of relatedNames) {
-    lines.push(`entity "${name}" as ${alias(name)} [[#/entity/${name}]]`);
+    lines.push(`entity "${name}" as ${alias(name)} [[#/entities/${name}]]`);
   }
   if (relatedNames.size > 0) lines.push("");
 

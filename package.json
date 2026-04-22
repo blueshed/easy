@@ -11,7 +11,7 @@
     "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "@blueshed/railroad": "^0.4.0",
+    "@blueshed/railroad": "^0.7.0",
     "bun-plugin-tailwind": "^0.1.2",
     "feather-icons": "^4.29.2",
     "postgres": "^3.4.8",
